@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/master/icons/pcap.svg" width="100" height="100" alt="PCAP Lab Logo">
+  <img src="https://img.icons8.com/fluency/100/network-packet.png" width="100" height="100" alt="PCAP Lab Logo">
   <h1>PCAP Lab Generator</h1>
   <p><i>A deterministic HTTP traffic generator for cybersecurity laboratories.</i></p>
 
