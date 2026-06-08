@@ -18,4 +18,9 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 export PYTHONPATH=$PROJECT_ROOT
 
 # Run the python generator
-python3 "$PROJECT_ROOT/generator/generate_pcap.py" "$STUDENT_ID" "$INTERFACE"
+if [ -d "$PROJECT_ROOT/.venv" ]; then
+    # Use absolute path for sudo reliability
+    "$PROJECT_ROOT/.venv/bin/python" "$PROJECT_ROOT/generator/generate_pcap.py" "$STUDENT_ID" "$INTERFACE"
+else
+    python3 "$PROJECT_ROOT/generator/generate_pcap.py" "$STUDENT_ID" "$INTERFACE"
+fi
