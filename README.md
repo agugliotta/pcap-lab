@@ -58,6 +58,15 @@ The artifacts will be available in `output/agustin/`:
 - `traffic.pcap`: The full network capture.
 - `answer_key.json`: List of all attacks executed and their timestamps.
 
+## 🎓 Educational Workflow
+
+This tool is designed to facilitate a complete **Attack-Defend** cycle in a classroom setting:
+
+1.  **Offense (Generation):** The student or professor runs `make generate`. This creates a unique trace of malicious and normal traffic.
+2.  **Analysis (Detection):** Students open the PCAP in Wireshark to identify the signatures, IP patterns, and payloads of the attacks listed in the `answer_key.json`.
+3.  **Defense (Mitigation):** Students write defensive rules (e.g., ModSecurity CRS) to block the identified attacks.
+4.  **Validation (Replay):** Using `make replay`, the same traffic is fired against the student's WAF. If the rules are correct, the WAF logs will show the blocked requests, confirming the defense is successful.
+
 ## 📖 Usage
 
 ### 1. Identify the Interface
