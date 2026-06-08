@@ -31,4 +31,4 @@ test:
 	$(VENV)/bin/pytest tests/
 
 clean:
-	rm -rf output/*
+	sudo rm -rf output/*
