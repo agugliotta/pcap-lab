@@ -32,6 +32,14 @@ This tool generates deterministic HTTP traffic to simulate realistic web environ
 - ✅ **Ground Truth:** Automatically generates an `answer_key.json` for easy automated grading.
 - 📦 **Ready to Use:** Includes a built-in dummy server and capture scripts using `tcpdump`.
 
+## 💎 Why Determinism Matters?
+
+In network security education, randomness is the enemy of consistent grading and clear analysis. This project solves this by ensuring:
+
+*   **Reproducibility:** The same `STUDENT_ID` will always generate the exact same attack sequence and payloads.
+*   **Predictable Grading:** Instructors can verify student findings against a pre-calculated `answer_key.json` that is guaranteed to match the traffic.
+*   **Realistic Artifacts:** Unlike synthetic packet builders (like Scapy), we use a real OS network stack. This results in realistic TCP sequences and timestamps while maintaining application-layer determinism.
+
 ## 🛠️ Installation
 
 ```bash
