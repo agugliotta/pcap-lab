@@ -24,8 +24,8 @@ generate:
 
 replay:
 	@echo "Replaying traffic from: $(FILE) to interface: $(INTERFACE)"
-	@# tcpreplay usually needs sudo
-	sudo ./scripts/replay.sh $(INTERFACE) $(FILE)
+	@# tcpreplay usually needs sudo. Optional TARGET_IP and TARGET_PORT can be provided.
+	sudo ./scripts/replay.sh $(INTERFACE) $(FILE) $(TARGET_IP) $(TARGET_PORT)
 
 test:
 	$(VENV)/bin/pytest tests/
