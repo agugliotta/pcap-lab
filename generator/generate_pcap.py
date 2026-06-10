@@ -16,12 +16,29 @@ from generator.utils.server import BackgroundServer
 from generator.traffic import normal
 from generator.attacks import sqli, xss, idor, csrf
 
-def run_traffic(student_id: str):
+def run_traffic(student_id: str, enabled_attacks: list = None):
     """
     Main logic to generate traffic stream.
     Returns list of executed attacks for the answer key.
     """
     
+    # Mapping of attack names to modules
+    attack_map = {
+        "sqli": sqli,
+        "xss": xss,
+        "idor": idor,
+        "csrf": csrf
+    }
+    
+    # Filter enabled attacks
+    if enabled_attacks:
+        available_attacks = [attack_map[a] for a in enabled_attacks if a in attack_map]
+    else:
+        available_attacks = list(attack_map.values())
+        
+    if not available_attacks:
+        print("Warning: No valid attacks enabled. Running in normal traffic mode.")
+
     # Initialize Random Seed
     seed_val = init_seed(student_id)
     print(f"Initialized seed: {seed_val} for student: {student_id}")
@@ -37,12 +54,12 @@ def run_traffic(student_id: str):
     
     for i in range(total_requests):
         # Decide if attack or normal
-        is_attack = random.random() < ATTACK_PROBABILITY
+        is_attack = random.random() < ATTACK_PROBABILITY and available_attacks
         
         request_kwargs = {}
         
         if is_attack:
-            attack_module = random.choice([sqli, xss, idor, csrf])
+            attack_module = random.choice(available_attacks)
             request_kwargs, metadata = attack_module.generate(BASE_URL)
             executed_attacks.append(metadata)
         else:
@@ -67,7 +84,7 @@ def run_traffic(student_id: str):
         "attacks": executed_attacks
     }
 
-def generate_pcap(student_id: str, interface: str, output_dir: str = "output"):
+def generate_pcap(student_id: str, interface: str, output_dir: str = "output", enabled_attacks: list = None):
     """
     Orchestrates the server, capture and traffic generation.
     """
@@ -91,7 +108,7 @@ def generate_pcap(student_id: str, interface: str, output_dir: str = "output"):
             print("Generating traffic...")
             start_time = time.time()
             
-            answer_data = run_traffic(student_id)
+            answer_data = run_traffic(student_id, enabled_attacks=enabled_attacks)
             
             duration = time.time() - start_time
             print(f"Traffic generation complete in {duration:.2f}s")

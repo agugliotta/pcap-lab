@@ -18,13 +18,18 @@ def cli():
 @click.argument('student_id')
 @click.argument('interface')
 @click.option('--output-dir', default='output', help='Base directory for generated files.')
-def generate(student_id, interface, output_dir):
+@click.option('--attacks', help='Comma-separated list of attack types to include (e.g. sqli,xss).')
+def generate(student_id, interface, output_dir, attacks):
     """Generate deterministic HTTP traffic and capture it to a PCAP file."""
     if os.geteuid() != 0:
         click.echo("Warning: Generating traffic usually requires sudo for packet capture.", err=True)
     
+    enabled_attacks = None
+    if attacks:
+        enabled_attacks = [a.strip().lower() for a in attacks.split(',')]
+    
     try:
-        generate_pcap(student_id, interface, output_dir)
+        generate_pcap(student_id, interface, output_dir, enabled_attacks=enabled_attacks)
         click.echo(f"Successfully generated traffic for student: {student_id}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
