@@ -47,8 +47,10 @@ In network security education, randomness is the enemy of consistent grading and
 git clone https://github.com/youruser/pcap-lab.git
 cd pcap-lab
 
-# Install dependencies (requests, click, pytest)
-make install
+# Create virtual environment and install dependencies
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
 > [!IMPORTANT]
@@ -59,11 +61,8 @@ make install
 Generate traffic for a student named `agustin` using the unified CLI:
 
 ```bash
-# Using the CLI directly (Recommended)
+# Using the CLI directly
 sudo .venv/bin/python main.py generate agustin lo
-
-# Or using the Makefile wrapper
-make generate STUDENT=agustin
 ```
 
 The artifacts will be available in `output/agustin/`:
@@ -81,20 +80,17 @@ This tool is designed to facilitate a complete **Attack-Defend** cycle in a clas
 
 ## 📖 Usage
 
-The project uses a unified CLI. You can use it via `make` commands or directly calling the Python script.
+The project uses a unified CLI.
 
 ### 1. Generating Traffic
 By default, the generator uses the loopback interface (`lo` or `lo0`).
 
 ```bash
-# Via CLI (Recommended)
+# Standard generation
 sudo .venv/bin/python main.py generate test lo
 
-# Selective attacks via CLI
+# Selective attacks (e.g., only SQLi and XSS)
 sudo .venv/bin/python main.py generate test lo --attacks sqli,xss
-
-# Via Makefile wrapper
-make generate STUDENT=test INTERFACE=eth0
 ```
 
 > [!TIP]
@@ -110,14 +106,11 @@ wireshark output/agustin/traffic.pcap
 You can replay the captured traffic against a real WAF like ModSecurity.
 
 ```bash
-# Via CLI (Recommended)
+# Standard replay
 sudo .venv/bin/python main.py replay lo output/agustin/traffic.pcap
 
-# Replay with IP/Port rewriting
+# Replay with IP/Port rewriting (for external targets)
 sudo .venv/bin/python main.py replay lo output/agustin/traffic.pcap --target-ip 172.17.0.2 --target-port 80
-
-# Via Makefile wrapper
-make replay FILE=output/agustin/traffic.pcap INTERFACE=eth0
 ```
 
 #### 🔄 Flexible Replay (Advanced)
@@ -125,14 +118,10 @@ If your WAF is running in a different environment (like a Docker container or an
 
 ## 🧪 Testing
 
-We use `pytest` to ensure everything is working correctly. You can run them via:
+We use `pytest` to ensure everything is working correctly:
 
 ```bash
-# Via CLI (Recommended)
 .venv/bin/python main.py test
-
-# Via Makefile wrapper
-make test
 ```
 
 ## 🛡️ ModSecurity Example
