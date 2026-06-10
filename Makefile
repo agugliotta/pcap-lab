@@ -22,7 +22,8 @@ generate:
 	sudo $(CLI) generate $(STUDENT) $(INTERFACE)
 
 replay:
-	sudo $(CLI) replay $(INTERFACE) $(FILE)
+	@# tcpreplay usually needs sudo. Optional TARGET_IP and TARGET_PORT can be provided.
+	sudo $(CLI) replay $(INTERFACE) $(FILE) $(if $(TARGET_IP),--target-ip $(TARGET_IP)) $(if $(TARGET_PORT),--target-port $(TARGET_PORT))
 
 test:
 	$(CLI) test

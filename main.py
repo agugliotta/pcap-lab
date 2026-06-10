@@ -33,7 +33,9 @@ def generate(student_id, interface, output_dir):
 @cli.command()
 @click.argument('interface')
 @click.argument('pcap_file', type=click.Path(exists=True))
-def replay(interface, pcap_file):
+@click.option('--target-ip', help='Rewrite destination IP (default maps 127.0.0.1 to this IP)')
+@click.option('--target-port', type=int, help='Rewrite destination port (default maps 8080 to this port)')
+def replay(interface, pcap_file, target_ip, target_port):
     """Replay a PCAP file on a specific network interface using tcpreplay."""
     if shutil.which("tcpreplay") is None:
         click.echo("Error: tcpreplay is not installed. Please install it first.", err=True)
@@ -42,12 +44,44 @@ def replay(interface, pcap_file):
     if os.geteuid() != 0:
         click.echo("Warning: Replaying traffic usually requires sudo.", err=True)
     
-    click.echo(f"Replaying {pcap_file} on {interface}...")
+    replay_file = pcap_file
+    
+    # If IP or Port is provided, we need to rewrite the PCAP
+    if target_ip or target_port:
+        if shutil.which("tcprewrite") is None:
+            click.echo("Error: tcprewrite is not installed (needed for IP/Port mapping).", err=True)
+            sys.exit(1)
+            
+        temp_pcap = pcap_file + ".tmp"
+        rewrite_cmd = ["tcprewrite", "--infile=" + pcap_file, "--outfile=" + temp_pcap]
+        
+        if target_ip:
+            click.echo(f"Mapping 127.0.0.1 to {target_ip}...")
+            rewrite_cmd.append(f"--dstipmap=127.0.0.1/32:{target_ip}/32")
+            
+        if target_port:
+            click.echo(f"Mapping port 8080 to {target_port}...")
+            rewrite_cmd.append(f"--portmap=8080:{target_port}")
+            
+        rewrite_cmd.append("--fixcsum")
+        
+        try:
+            subprocess.run(rewrite_cmd, check=True)
+            replay_file = temp_pcap
+        except subprocess.CalledProcessError as e:
+            click.echo(f"Error during tcprewrite: {e}", err=True)
+            sys.exit(e.returncode)
+
+    click.echo(f"Replaying {replay_file} on {interface}...")
     try:
-        subprocess.run(["tcpreplay", "--intf1=" + interface, "--topspeed", pcap_file], check=True)
+        subprocess.run(["tcpreplay", "--intf1=" + interface, "--topspeed", replay_file], check=True)
     except subprocess.CalledProcessError as e:
         click.echo(f"Error during replay: {e}", err=True)
         sys.exit(e.returncode)
+    finally:
+        # Clean up temporary file if it was created
+        if replay_file != pcap_file and os.path.exists(replay_file):
+            os.remove(replay_file)
 
 @cli.command()
 def test():

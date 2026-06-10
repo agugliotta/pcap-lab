@@ -91,9 +91,18 @@ wireshark output/agustin/traffic.pcap
 ```
 
 ### 3. Replay against a WAF
-You can replay the captured traffic against a real WAF like ModSecurity:
+You can replay the captured traffic against a real WAF like ModSecurity. By default, it sends packets to `127.0.0.1:8080`.
+
 ```bash
 make replay FILE=output/agustin/traffic.pcap INTERFACE=eth0
+```
+
+#### 🔄 Flexible Replay (Advanced)
+If your WAF is running in a different environment (like a Docker container or an external server), you can rewrite the destination IP and Port on the fly:
+
+```bash
+# Example: Replay against a Docker container at 172.17.0.2 on port 80
+make replay FILE=output/agustin/traffic.pcap TARGET_IP=172.17.0.2 TARGET_PORT=80
 ```
 
 ## 🧪 Testing
