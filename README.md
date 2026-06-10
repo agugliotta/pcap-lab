@@ -56,9 +56,13 @@ make install
 
 ## ⏱️ Quick Start
 
-Generate traffic for a student named `agustin`:
+Generate traffic for a student named `agustin` using the unified CLI:
 
 ```bash
+# Using the CLI directly (Recommended)
+sudo .venv/bin/python main.py generate agustin lo
+
+# Or using the Makefile wrapper
 make generate STUDENT=agustin
 ```
 
@@ -70,10 +74,10 @@ The artifacts will be available in `output/agustin/`:
 
 This tool is designed to facilitate a complete **Attack-Defend** cycle in a classroom setting:
 
-1.  **Offense (Generation):** The student or professor runs `make generate`. This creates a unique trace of malicious and normal traffic.
+1.  **Offense (Generation):** The student or professor runs the `generate` command. This creates a unique trace of malicious and normal traffic.
 2.  **Analysis (Detection):** Students open the PCAP in Wireshark to identify the signatures, IP patterns, and payloads of the attacks listed in the `answer_key.json`.
 3.  **Defense (Mitigation):** Students write defensive rules (e.g., ModSecurity CRS) to block the identified attacks.
-4.  **Validation (Replay):** Using `make replay`, the same traffic is fired against the student's WAF. If the rules are correct, the WAF logs will show the blocked requests, confirming the defense is successful.
+4.  **Validation (Replay):** Using the `replay` command, the same traffic is fired against the student's WAF. If the rules are correct, the WAF logs will show the blocked requests, confirming the defense is successful.
 
 ## 📖 Usage
 
@@ -83,11 +87,14 @@ The project uses a unified CLI. You can use it via `make` commands or directly c
 By default, the generator uses the loopback interface (`lo` or `lo0`).
 
 ```bash
-# Via Makefile (all attacks by default)
-make generate STUDENT=test INTERFACE=eth0
+# Via CLI (Recommended)
+sudo .venv/bin/python main.py generate test lo
 
-# Via CLI (selective attacks)
-sudo .venv/bin/python main.py generate test eth0 --attacks sqli,xss
+# Selective attacks via CLI
+sudo .venv/bin/python main.py generate test lo --attacks sqli,xss
+
+# Via Makefile wrapper
+make generate STUDENT=test INTERFACE=eth0
 ```
 
 > [!TIP]
@@ -103,34 +110,29 @@ wireshark output/agustin/traffic.pcap
 You can replay the captured traffic against a real WAF like ModSecurity.
 
 ```bash
-# Via Makefile
-make replay FILE=output/agustin/traffic.pcap INTERFACE=eth0
+# Via CLI (Recommended)
+sudo .venv/bin/python main.py replay lo output/agustin/traffic.pcap
 
-# Via CLI
-sudo .venv/bin/python main.py replay eth0 output/agustin/traffic.pcap
+# Replay with IP/Port rewriting
+sudo .venv/bin/python main.py replay lo output/agustin/traffic.pcap --target-ip 172.17.0.2 --target-port 80
+
+# Via Makefile wrapper
+make replay FILE=output/agustin/traffic.pcap INTERFACE=eth0
 ```
 
 #### 🔄 Flexible Replay (Advanced)
-If your WAF is running in a different environment (like a Docker container or an external server), you can rewrite the destination IP and Port on the fly:
-
-```bash
-# Via Makefile
-make replay FILE=output/agustin/traffic.pcap TARGET_IP=172.17.0.2 TARGET_PORT=80
-
-# Via CLI
-sudo .venv/bin/python main.py replay eth0 output/agustin/traffic.pcap --target-ip 172.17.0.2 --target-port 80
-```
+If your WAF is running in a different environment (like a Docker container or an external server), use the `--target-ip` and `--target-port` options to rewrite the destination headers on the fly.
 
 ## 🧪 Testing
 
 We use `pytest` to ensure everything is working correctly. You can run them via:
 
 ```bash
-# Via Makefile
-make test
-
-# Via CLI
+# Via CLI (Recommended)
 .venv/bin/python main.py test
+
+# Via Makefile wrapper
+make test
 ```
 
 ## 🛡️ ModSecurity Example
