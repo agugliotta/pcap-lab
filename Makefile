@@ -1,4 +1,4 @@
-.PHONY: install generate replay test clean
+.PHONY: install generate replay test clean help
 
 # Default shell
 SHELL := /bin/bash
@@ -12,23 +12,24 @@ FILE ?= output/$(STUDENT)/traffic.pcap
 VENV := .venv
 PYTHON := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
+CLI := $(PYTHON) main.py
 
 install:
 	@if [ ! -d "$(VENV)" ]; then python3 -m venv $(VENV); fi
 	$(PIP) install -r requirements.txt
 
 generate:
-	@echo "Generating traffic for student: $(STUDENT) on interface: $(INTERFACE)"
-	@# We need sudo for tcpdump, and we use the venv python to have all dependencies
-	sudo ./scripts/generate.sh $(STUDENT) $(INTERFACE)
+	sudo $(CLI) generate $(STUDENT) $(INTERFACE)
 
 replay:
-	@echo "Replaying traffic from: $(FILE) to interface: $(INTERFACE)"
 	@# tcpreplay usually needs sudo. Optional TARGET_IP and TARGET_PORT can be provided.
-	sudo ./scripts/replay.sh $(INTERFACE) $(FILE) $(TARGET_IP) $(TARGET_PORT)
+	sudo $(CLI) replay $(INTERFACE) $(FILE) $(if $(TARGET_IP),--target-ip $(TARGET_IP)) $(if $(TARGET_PORT),--target-port $(TARGET_PORT))
 
 test:
-	$(VENV)/bin/pytest tests/
+	$(CLI) test
 
 clean:
-	sudo rm -rf output/*
+	sudo $(CLI) clean
+
+help:
+	@$(CLI) --help

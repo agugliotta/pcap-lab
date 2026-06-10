@@ -1,4 +1,3 @@
-import argparse
 import time
 import random
 import json
@@ -46,10 +45,8 @@ def run_traffic(student_id: str):
             attack_module = random.choice([sqli, xss, idor, csrf])
             request_kwargs, metadata = attack_module.generate(BASE_URL)
             executed_attacks.append(metadata)
-            # print(f"  [{i+1}/{total_requests}] ATTACK: {metadata['type']}")
         else:
             request_kwargs = normal.generate(BASE_URL)
-            # print(f"  [{i+1}/{total_requests}] Normal: {request_kwargs['url']}")
             
         # Execute Request
         try:
@@ -59,10 +56,8 @@ def run_traffic(student_id: str):
             # Simulate human reading time (very short for speed, but non-zero)
             time.sleep(random.uniform(0.05, 0.2))
             
-        except requests.RequestException as e:
-            # Depending on the attack, connection errors might be expected 
-            # (e.g. if the server crashes, though ours is simple)
-            # We just ignore errors to keep the flow going
+        except requests.RequestException:
+            # Ignore errors to keep the flow going
             pass
             
     return {
@@ -72,15 +67,11 @@ def run_traffic(student_id: str):
         "attacks": executed_attacks
     }
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate PCAP traffic for a student.")
-    parser.add_argument("student_id", help="Unique identifier for the student")
-    parser.add_argument("interface", help="Network interface to capture (e.g. lo, lo0)")
-    parser.add_argument("--output-dir", default="output", help="Base output directory")
-    
-    args = parser.parse_args()
-    
-    student_dir = os.path.join(args.output_dir, args.student_id)
+def generate_pcap(student_id: str, interface: str, output_dir: str = "output"):
+    """
+    Orchestrates the server, capture and traffic generation.
+    """
+    student_dir = os.path.join(output_dir, student_id)
     os.makedirs(student_dir, exist_ok=True)
     
     pcap_file = os.path.join(student_dir, "traffic.pcap")
@@ -94,13 +85,13 @@ def main():
     try:
         # Start Capture
         # We capture on the specified interface, filtered to our port
-        with packet_capture(args.interface, pcap_file, capture_filter=f"port {SERVER_PORT}"):
+        with packet_capture(interface, pcap_file, capture_filter=f"port {SERVER_PORT}"):
             
             # Run Traffic Generation
             print("Generating traffic...")
             start_time = time.time()
             
-            answer_data = run_traffic(args.student_id)
+            answer_data = run_traffic(student_id)
             
             duration = time.time() - start_time
             print(f"Traffic generation complete in {duration:.2f}s")
@@ -110,13 +101,24 @@ def main():
                 json.dump(answer_data, f, indent=2)
             print(f"Answer key saved to {key_file}")
             
-    except KeyboardInterrupt:
-        print("\nAborted by user.")
     except Exception as e:
-        print(f"\nError: {e}")
+        print(f"\nError during generation: {e}")
+        raise
     finally:
         server.stop()
         print("Server stopped.")
 
 if __name__ == "__main__":
-    main()
+    # Keeping minimal compatibility for direct execution if needed
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate PCAP traffic for a student.")
+    parser.add_argument("student_id", help="Unique identifier for the student")
+    parser.add_argument("interface", help="Network interface to capture")
+    parser.add_argument("--output-dir", default="output", help="Base output directory")
+    args = parser.parse_args()
+    
+    try:
+        generate_pcap(args.student_id, args.interface, args.output_dir)
+    except KeyboardInterrupt:
+        print("\nAborted by user.")
+        sys.exit(1)
