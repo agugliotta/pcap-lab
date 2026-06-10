@@ -30,7 +30,7 @@ This tool generates deterministic HTTP traffic to simulate realistic web environ
 - 🎯 **Deterministic:** Uses a `STUDENT_ID` as a seed to generate identical traffic for the same student every time.
 - 🌐 **Realistic Traffic:** Simulates diverse user agents, varied headers, and normal navigation patterns.
 - ✅ **Ground Truth:** Automatically generates an `answer_key.json` for easy automated grading.
-- 📦 **Ready to Use:** Includes a built-in dummy server and capture scripts using `tcpdump`.
+- 📦 **Unified CLI:** A single Python-based CLI (`pcap-lab`) to manage generation, replay, and testing.
 
 ## 💎 Why Determinism Matters?
 
@@ -47,7 +47,7 @@ In network security education, randomness is the enemy of consistent grading and
 git clone https://github.com/youruser/pcap-lab.git
 cd pcap-lab
 
-# Install dependencies (requests, pytest)
+# Install dependencies (requests, click, pytest)
 make install
 ```
 
@@ -77,11 +77,17 @@ This tool is designed to facilitate a complete **Attack-Defend** cycle in a clas
 
 ## 📖 Usage
 
-### 1. Identify the Interface
-By default, the generator uses the loopback interface (`lo` or `lo0`). You can override this in the `Makefile` or via CLI:
+The project uses a unified CLI. You can use it via `make` commands or directly calling the Python script.
+
+### 1. Generating Traffic
+By default, the generator uses the loopback interface (`lo` or `lo0`).
 
 ```bash
+# Via Makefile
 make generate STUDENT=test INTERFACE=eth0
+
+# Via CLI
+sudo .venv/bin/python main.py generate test eth0
 ```
 
 ### 2. Analyze with Wireshark
@@ -91,26 +97,37 @@ wireshark output/agustin/traffic.pcap
 ```
 
 ### 3. Replay against a WAF
-You can replay the captured traffic against a real WAF like ModSecurity. By default, it sends packets to `127.0.0.1:8080`.
+You can replay the captured traffic against a real WAF like ModSecurity.
 
 ```bash
+# Via Makefile
 make replay FILE=output/agustin/traffic.pcap INTERFACE=eth0
+
+# Via CLI
+sudo .venv/bin/python main.py replay eth0 output/agustin/traffic.pcap
 ```
 
 #### 🔄 Flexible Replay (Advanced)
 If your WAF is running in a different environment (like a Docker container or an external server), you can rewrite the destination IP and Port on the fly:
 
 ```bash
-# Example: Replay against a Docker container at 172.17.0.2 on port 80
+# Via Makefile
 make replay FILE=output/agustin/traffic.pcap TARGET_IP=172.17.0.2 TARGET_PORT=80
+
+# Via CLI
+sudo .venv/bin/python main.py replay eth0 output/agustin/traffic.pcap --target-ip 172.17.0.2 --target-port 80
 ```
 
 ## 🧪 Testing
 
-We use `pytest` to ensure everything is working correctly:
+We use `pytest` to ensure everything is working correctly. You can run them via:
 
 ```bash
+# Via Makefile
 make test
+
+# Via CLI
+.venv/bin/python main.py test
 ```
 
 ## 🛡️ ModSecurity Example
