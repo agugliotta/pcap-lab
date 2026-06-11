@@ -91,10 +91,15 @@ sudo .venv/bin/python main.py generate test lo
 
 # Selective attacks (e.g., only SQLi and XSS)
 sudo .venv/bin/python main.py generate test lo --attacks sqli,xss
+
+# Define an exact number of total requests
+sudo .venv/bin/python main.py generate test lo --requests 50
 ```
 
 > [!TIP]
 > Use the `--attacks` option to focus the lab on specific vectors. Available types: `sqli`, `xss`, `idor`, `csrf`.
+> Use the `--requests` option to generate an exact number of HTTP requests (by default, it chooses a random number between 50 and 100).
+
 
 ### 2. Analyze with Wireshark
 Open the generated PCAP in Wireshark to inspect the attacks:
