@@ -16,7 +16,7 @@ from generator.utils.server import BackgroundServer
 from generator.traffic import normal
 from generator.attacks import sqli, xss, idor, csrf
 
-def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int = None):
+def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int = None, attack_count: int = None, attack_ratio: float = None):
     """
     Main logic to generate traffic stream.
     Returns list of executed attacks for the answer key.
@@ -50,6 +50,27 @@ def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int
         total_requests = random.randint(MIN_REQUESTS, MAX_REQUESTS)
     print(f"Planning {total_requests} requests...")
     
+    # Validate attack count and ratio
+    if attack_count is not None and (attack_count < 0 or attack_count > total_requests):
+        raise ValueError(f"attack_count ({attack_count}) must be between 0 and total requests ({total_requests})")
+        
+    if attack_ratio is not None and (attack_ratio < 0.0 or attack_ratio > 1.0):
+        raise ValueError(f"attack_ratio ({attack_ratio}) must be between 0.0 and 1.0")
+
+    final_attack_count = None
+    if attack_count is not None:
+        final_attack_count = attack_count
+    elif attack_ratio is not None:
+        final_attack_count = int(round(total_requests * attack_ratio))
+        final_attack_count = max(0, min(total_requests, final_attack_count))
+
+    # Pre-calculate attack indices if count or ratio is specified
+    attack_indices = None
+    if final_attack_count is not None:
+        if not available_attacks:
+            final_attack_count = 0
+        attack_indices = set(random.sample(range(total_requests), final_attack_count))
+    
     executed_attacks = []
     
     # Create a session for connection reuse (like a real browser)
@@ -57,7 +78,10 @@ def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int
     
     for i in range(total_requests):
         # Decide if attack or normal
-        is_attack = random.random() < ATTACK_PROBABILITY and available_attacks
+        if attack_indices is not None:
+            is_attack = (i in attack_indices) and available_attacks
+        else:
+            is_attack = random.random() < ATTACK_PROBABILITY and available_attacks
         
         request_kwargs = {}
         
@@ -85,14 +109,16 @@ def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int
         "student_id": student_id,
         "settings": {
             "num_requests": num_requests,
-            "enabled_attacks": enabled_attacks if enabled_attacks is not None else list(attack_map.keys())
+            "enabled_attacks": enabled_attacks if enabled_attacks is not None else list(attack_map.keys()),
+            "attack_count": attack_count,
+            "attack_ratio": attack_ratio
         },
         "total_requests": total_requests,
         "attacks": executed_attacks
     }
 
 
-def generate_pcap(student_id: str, interface: str, output_dir: str = "output", enabled_attacks: list = None, num_requests: int = None):
+def generate_pcap(student_id: str, interface: str, output_dir: str = "output", enabled_attacks: list = None, num_requests: int = None, attack_count: int = None, attack_ratio: float = None):
     """
     Orchestrates the server, capture and traffic generation.
     """
@@ -116,7 +142,7 @@ def generate_pcap(student_id: str, interface: str, output_dir: str = "output", e
             print("Generating traffic...")
             start_time = time.time()
             
-            answer_data = run_traffic(student_id, enabled_attacks=enabled_attacks, num_requests=num_requests)
+            answer_data = run_traffic(student_id, enabled_attacks=enabled_attacks, num_requests=num_requests, attack_count=attack_count, attack_ratio=attack_ratio)
             
             duration = time.time() - start_time
             print(f"Traffic generation complete in {duration:.2f}s")
@@ -141,10 +167,12 @@ if __name__ == "__main__":
     parser.add_argument("interface", help="Network interface to capture")
     parser.add_argument("--output-dir", default="output", help="Base output directory")
     parser.add_argument("--requests", type=int, help="Exact number of requests to generate")
+    parser.add_argument("--attack-count", type=int, help="Exact number of attacks to generate")
+    parser.add_argument("--attack-ratio", type=float, help="Ratio of attacks to total requests (0.0 to 1.0)")
     args = parser.parse_args()
     
     try:
-        generate_pcap(args.student_id, args.interface, args.output_dir, num_requests=args.requests)
+        generate_pcap(args.student_id, args.interface, args.output_dir, num_requests=args.requests, attack_count=args.attack_count, attack_ratio=args.attack_ratio)
     except KeyboardInterrupt:
         print("\nAborted by user.")
         sys.exit(1)

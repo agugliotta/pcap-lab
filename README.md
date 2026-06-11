@@ -94,11 +94,20 @@ sudo .venv/bin/python main.py generate test lo --attacks sqli,xss
 
 # Define an exact number of total requests
 sudo .venv/bin/python main.py generate test lo --requests 50
+
+# Define an exact number of attacks
+sudo .venv/bin/python main.py generate test lo --requests 50 --attack-count 10
+
+# Define a specific ratio of attacks (e.g. 20% of traffic is malicious)
+sudo .venv/bin/python main.py generate test lo --requests 50 --attack-ratio 0.2
 ```
 
 > [!TIP]
 > Use the `--attacks` option to focus the lab on specific vectors. Available types: `sqli`, `xss`, `idor`, `csrf`.
 > Use the `--requests` option to generate an exact number of HTTP requests (by default, it chooses a random number between 50 and 100).
+> Use the `--attack-count` option to configure an exact number of malicious requests.
+> Use the `--attack-ratio` option to define a specific percentage/ratio of attacks (value between 0.0 and 1.0). If both are specified, `--attack-count` takes priority.
+
 
 
 ### 2. Analyze with Wireshark
