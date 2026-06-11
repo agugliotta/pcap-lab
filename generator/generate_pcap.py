@@ -83,9 +83,14 @@ def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int
     return {
         "seed": str(seed_val),
         "student_id": student_id,
+        "settings": {
+            "num_requests": num_requests,
+            "enabled_attacks": enabled_attacks if enabled_attacks is not None else list(attack_map.keys())
+        },
         "total_requests": total_requests,
         "attacks": executed_attacks
     }
+
 
 def generate_pcap(student_id: str, interface: str, output_dir: str = "output", enabled_attacks: list = None, num_requests: int = None):
     """
