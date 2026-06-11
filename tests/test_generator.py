@@ -132,5 +132,21 @@ def test_traffic_logic_validation(mock_session):
     with pytest.raises(ValueError):
         run_traffic("test_student_unit", num_requests=10, attack_ratio=1.1)
 
+@patch('requests.Session')
+def test_traffic_logic_enabled_attacks(mock_session):
+    """
+    Test that enabling specific attacks works and only those are generated.
+    """
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_session.return_value.request.return_value = mock_resp
+    
+    enabled = ["rce", "lfi", "cmdi"]
+    result = run_traffic("test_student_unit", num_requests=30, attack_count=10, enabled_attacks=enabled)
+    
+    assert len(result["attacks"]) == 10
+    for attack in result["attacks"]:
+        assert attack["type"] in ["RCE", "LFI", "CMDI"]
+
 
 

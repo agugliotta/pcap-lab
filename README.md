@@ -26,7 +26,7 @@ This tool generates deterministic HTTP traffic to simulate realistic web environ
 
 ## 🚀 Features
 
-- 🛡️ **Attack Simulation:** Includes SQL Injection, Cross-Site Scripting (XSS), IDOR, and CSRF.
+- 🛡️ **Attack Simulation:** Includes SQL Injection, Cross-Site Scripting (XSS), IDOR, CSRF, RCE, LFI, and Command Injection.
 - 🎯 **Deterministic:** Uses a `STUDENT_ID` as a seed to generate identical traffic for the same student every time.
 - 🌐 **Realistic Traffic:** Simulates diverse user agents, varied headers, and normal navigation patterns.
 - ✅ **Ground Truth:** Automatically generates an `answer_key.json` for easy automated grading.
@@ -103,7 +103,7 @@ sudo .venv/bin/python main.py generate test lo --requests 50 --attack-ratio 0.2
 ```
 
 > [!TIP]
-> Use the `--attacks` option to focus the lab on specific vectors. Available types: `sqli`, `xss`, `idor`, `csrf`.
+> Use the `--attacks` option to focus the lab on specific vectors. Available types: `sqli`, `xss`, `idor`, `csrf`, `rce`, `lfi`, `cmdi`.
 > Use the `--requests` option to generate an exact number of HTTP requests (by default, it chooses a random number between 50 and 100).
 > Use the `--attack-count` option to configure an exact number of malicious requests.
 > Use the `--attack-ratio` option to define a specific percentage/ratio of attacks (value between 0.0 and 1.0). If both are specified, `--attack-count` takes priority.

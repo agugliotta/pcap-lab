@@ -14,7 +14,7 @@ from generator.utils.seed import init_seed
 from generator.utils.capture import packet_capture
 from generator.utils.server import BackgroundServer
 from generator.traffic import normal
-from generator.attacks import sqli, xss, idor, csrf
+from generator.attacks import sqli, xss, idor, csrf, rce, lfi, cmdi
 
 def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int = None, attack_count: int = None, attack_ratio: float = None):
     """
@@ -27,7 +27,10 @@ def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int
         "sqli": sqli,
         "xss": xss,
         "idor": idor,
-        "csrf": csrf
+        "csrf": csrf,
+        "rce": rce,
+        "lfi": lfi,
+        "cmdi": cmdi
     }
     
     # Filter enabled attacks
