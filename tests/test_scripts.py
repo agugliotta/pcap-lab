@@ -9,6 +9,9 @@ def test_main_generate_usage():
     assert result.returncode == 0
     assert "Usage: main.py generate" in result.stdout
     assert "--requests" in result.stdout
+    assert "--attack-count" in result.stdout
+    assert "--attack-ratio" in result.stdout
+
 
 
 def test_main_replay_usage():

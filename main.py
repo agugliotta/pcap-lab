@@ -20,7 +20,9 @@ def cli():
 @click.option('--output-dir', default='output', help='Base directory for generated files.')
 @click.option('--attacks', help='Comma-separated list of attack types to include (e.g. sqli,xss).')
 @click.option('--requests', type=int, help='Exact number of total requests to generate.')
-def generate(student_id, interface, output_dir, attacks, requests):
+@click.option('--attack-count', type=int, help='Exact number of attacks to generate.')
+@click.option('--attack-ratio', type=float, help='Ratio of attacks to total requests (float between 0.0 and 1.0).')
+def generate(student_id, interface, output_dir, attacks, requests, attack_count, attack_ratio):
     """Generate deterministic HTTP traffic and capture it to a PCAP file."""
     if os.geteuid() != 0:
         click.echo("Warning: Generating traffic usually requires sudo for packet capture.", err=True)
@@ -30,7 +32,7 @@ def generate(student_id, interface, output_dir, attacks, requests):
         enabled_attacks = [a.strip().lower() for a in attacks.split(',')]
     
     try:
-        generate_pcap(student_id, interface, output_dir, enabled_attacks=enabled_attacks, num_requests=requests)
+        generate_pcap(student_id, interface, output_dir, enabled_attacks=enabled_attacks, num_requests=requests, attack_count=attack_count, attack_ratio=attack_ratio)
         click.echo(f"Successfully generated traffic for student: {student_id}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
