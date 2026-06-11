@@ -28,6 +28,34 @@ def test_traffic_logic(mock_session):
         assert result["total_requests"] >= 5
         assert result["total_requests"] <= 10
         assert isinstance(result["attacks"], list)
+        assert "settings" in result
+        assert result["settings"]["num_requests"] is None
+        assert isinstance(result["settings"]["enabled_attacks"], list)
         
         # Verify requests were 'sent'
         assert mock_session.return_value.request.called
+
+@patch('requests.Session')
+def test_traffic_logic_exact_requests(mock_session):
+    """
+    Test the traffic generation logic with an exact number of requests.
+    """
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_session.return_value.request.return_value = mock_resp
+    
+    # Run with exact requests
+    result = run_traffic("test_student_unit", num_requests=15)
+    
+    assert "seed" in result
+    assert result["total_requests"] == 15
+    assert len(result["attacks"]) <= 15
+    assert isinstance(result["attacks"], list)
+    assert "settings" in result
+    assert result["settings"]["num_requests"] == 15
+    assert isinstance(result["settings"]["enabled_attacks"], list)
+    
+    # Verify exactly 15 requests were sent
+    assert mock_session.return_value.request.call_count == 15
+
+

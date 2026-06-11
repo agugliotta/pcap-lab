@@ -16,7 +16,7 @@ from generator.utils.server import BackgroundServer
 from generator.traffic import normal
 from generator.attacks import sqli, xss, idor, csrf
 
-def run_traffic(student_id: str, enabled_attacks: list = None):
+def run_traffic(student_id: str, enabled_attacks: list = None, num_requests: int = None):
     """
     Main logic to generate traffic stream.
     Returns list of executed attacks for the answer key.
@@ -44,7 +44,10 @@ def run_traffic(student_id: str, enabled_attacks: list = None):
     print(f"Initialized seed: {seed_val} for student: {student_id}")
     
     # Determine total requests
-    total_requests = random.randint(MIN_REQUESTS, MAX_REQUESTS)
+    if num_requests is not None:
+        total_requests = num_requests
+    else:
+        total_requests = random.randint(MIN_REQUESTS, MAX_REQUESTS)
     print(f"Planning {total_requests} requests...")
     
     executed_attacks = []
@@ -80,11 +83,16 @@ def run_traffic(student_id: str, enabled_attacks: list = None):
     return {
         "seed": str(seed_val),
         "student_id": student_id,
+        "settings": {
+            "num_requests": num_requests,
+            "enabled_attacks": enabled_attacks if enabled_attacks is not None else list(attack_map.keys())
+        },
         "total_requests": total_requests,
         "attacks": executed_attacks
     }
 
-def generate_pcap(student_id: str, interface: str, output_dir: str = "output", enabled_attacks: list = None):
+
+def generate_pcap(student_id: str, interface: str, output_dir: str = "output", enabled_attacks: list = None, num_requests: int = None):
     """
     Orchestrates the server, capture and traffic generation.
     """
@@ -108,7 +116,7 @@ def generate_pcap(student_id: str, interface: str, output_dir: str = "output", e
             print("Generating traffic...")
             start_time = time.time()
             
-            answer_data = run_traffic(student_id, enabled_attacks=enabled_attacks)
+            answer_data = run_traffic(student_id, enabled_attacks=enabled_attacks, num_requests=num_requests)
             
             duration = time.time() - start_time
             print(f"Traffic generation complete in {duration:.2f}s")
@@ -132,10 +140,11 @@ if __name__ == "__main__":
     parser.add_argument("student_id", help="Unique identifier for the student")
     parser.add_argument("interface", help="Network interface to capture")
     parser.add_argument("--output-dir", default="output", help="Base output directory")
+    parser.add_argument("--requests", type=int, help="Exact number of requests to generate")
     args = parser.parse_args()
     
     try:
-        generate_pcap(args.student_id, args.interface, args.output_dir)
+        generate_pcap(args.student_id, args.interface, args.output_dir, num_requests=args.requests)
     except KeyboardInterrupt:
         print("\nAborted by user.")
         sys.exit(1)
