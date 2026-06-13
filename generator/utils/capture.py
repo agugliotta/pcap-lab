@@ -38,16 +38,23 @@ def packet_capture(interface: str, output_file: str, capture_filter: str = "port
     print(f"Starting capture on {interface} -> {output_file}")
     
     # Start process
-    # stderr=subprocess.DEVNULL suppresses tcpdump's startup output
+    # stdout=subprocess.DEVNULL suppresses packet count output
     process = subprocess.Popen(
         cmd, 
         stdout=subprocess.DEVNULL, 
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
         preexec_fn=os.setsid  # Start in new session to kill process group later
     )
     
     # Wait for tcpdump to initialize
-    time.sleep(2)
+    # 0.5s is usually enough for tcpdump to start on modern systems
+    time.sleep(0.5)
+    
+    # Check if process died early (e.g. permission denied)
+    if process.poll() is not None:
+        stderr = process.stderr.read()
+        print(f"Error: tcpdump failed to start: {stderr.strip()}")
     
     try:
         yield process

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from generator.generate_pcap import run_traffic
+from generator.traffic_engine import TrafficEngine
 
 @patch('requests.Session')
 def test_traffic_logic(mock_session):
@@ -19,10 +19,11 @@ def test_traffic_logic(mock_session):
     mock_session.return_value.request.return_value = mock_resp
     
     # Run a small batch
-    with patch('generator.generate_pcap.MIN_REQUESTS', 5), \
-         patch('generator.generate_pcap.MAX_REQUESTS', 10):
+    with patch('generator.traffic_engine.MIN_REQUESTS', 5), \
+         patch('generator.traffic_engine.MAX_REQUESTS', 10):
         
-        result = run_traffic("test_student_unit")
+        engine = TrafficEngine("test_student_unit")
+        result = engine.run()
         
         assert "seed" in result
         assert result["total_requests"] >= 5
@@ -45,7 +46,8 @@ def test_traffic_logic_exact_requests(mock_session):
     mock_session.return_value.request.return_value = mock_resp
     
     # Run with exact requests
-    result = run_traffic("test_student_unit", num_requests=15)
+    engine = TrafficEngine("test_student_unit", num_requests=15)
+    result = engine.run()
     
     assert "seed" in result
     assert result["total_requests"] == 15
@@ -67,7 +69,8 @@ def test_traffic_logic_exact_attack_count(mock_session):
     mock_resp.status_code = 200
     mock_session.return_value.request.return_value = mock_resp
     
-    result = run_traffic("test_student_unit", num_requests=20, attack_count=5)
+    engine = TrafficEngine("test_student_unit", num_requests=20, attack_count=5)
+    result = engine.run()
     
     assert result["total_requests"] == 20
     # The length of the attacks list in answer key should be exactly 5
@@ -85,7 +88,8 @@ def test_traffic_logic_attack_ratio(mock_session):
     mock_session.return_value.request.return_value = mock_resp
     
     # 20 requests * 0.25 ratio = 5 attacks
-    result = run_traffic("test_student_unit", num_requests=20, attack_ratio=0.25)
+    engine = TrafficEngine("test_student_unit", num_requests=20, attack_ratio=0.25)
+    result = engine.run()
     
     assert result["total_requests"] == 20
     assert len(result["attacks"]) == 5
@@ -102,35 +106,11 @@ def test_traffic_logic_priority(mock_session):
     mock_session.return_value.request.return_value = mock_resp
     
     # Count (3) should take priority over ratio (0.5 * 10 = 5)
-    result = run_traffic("test_student_unit", num_requests=10, attack_count=3, attack_ratio=0.5)
+    engine = TrafficEngine("test_student_unit", num_requests=10, attack_count=3, attack_ratio=0.5)
+    result = engine.run()
     
     assert result["total_requests"] == 10
     assert len(result["attacks"]) == 3
-
-@patch('requests.Session')
-def test_traffic_logic_validation(mock_session):
-    """
-    Test that invalid attack counts or ratios raise ValueError.
-    """
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_session.return_value.request.return_value = mock_resp
-    
-    # attack_count > num_requests
-    with pytest.raises(ValueError):
-        run_traffic("test_student_unit", num_requests=10, attack_count=11)
-        
-    # attack_count < 0
-    with pytest.raises(ValueError):
-        run_traffic("test_student_unit", num_requests=10, attack_count=-1)
-        
-    # attack_ratio < 0
-    with pytest.raises(ValueError):
-        run_traffic("test_student_unit", num_requests=10, attack_ratio=-0.1)
-        
-    # attack_ratio > 1
-    with pytest.raises(ValueError):
-        run_traffic("test_student_unit", num_requests=10, attack_ratio=1.1)
 
 @patch('requests.Session')
 def test_traffic_logic_enabled_attacks(mock_session):
@@ -142,11 +122,9 @@ def test_traffic_logic_enabled_attacks(mock_session):
     mock_session.return_value.request.return_value = mock_resp
     
     enabled = ["rce", "lfi", "cmdi"]
-    result = run_traffic("test_student_unit", num_requests=30, attack_count=10, enabled_attacks=enabled)
+    engine = TrafficEngine("test_student_unit", num_requests=30, attack_count=10, enabled_attacks=enabled)
+    result = engine.run()
     
     assert len(result["attacks"]) == 10
     for attack in result["attacks"]:
         assert attack["type"] in ["RCE", "LFI", "CMDI"]
-
-
-

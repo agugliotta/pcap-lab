@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import sys
 import subprocess
@@ -7,7 +8,6 @@ import click
 # Ensure the project root is in the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from generator.generate_pcap import generate_pcap
 
 @click.group()
 def cli():
@@ -24,6 +24,9 @@ def cli():
 @click.option('--attack-ratio', type=float, help='Ratio of attacks to total requests (float between 0.0 and 1.0).')
 def generate(student_id, interface, output_dir, attacks, requests, attack_count, attack_ratio):
     """Generate deterministic HTTP traffic and capture it to a PCAP file."""
+    from generator.traffic_engine import TrafficEngine
+    from generator.pcap_generator import PcapGenerator
+    
     if os.geteuid() != 0:
         click.echo("Warning: Generating traffic usually requires sudo for packet capture.", err=True)
     
@@ -32,7 +35,21 @@ def generate(student_id, interface, output_dir, attacks, requests, attack_count,
         enabled_attacks = [a.strip().lower() for a in attacks.split(',')]
     
     try:
-        generate_pcap(student_id, interface, output_dir, enabled_attacks=enabled_attacks, num_requests=requests, attack_count=attack_count, attack_ratio=attack_ratio)
+        engine = TrafficEngine(
+            student_id=student_id,
+            enabled_attacks=enabled_attacks,
+            num_requests=requests,
+            attack_count=attack_count,
+            attack_ratio=attack_ratio
+        )
+        
+        generator = PcapGenerator(
+            engine=engine,
+            interface=interface,
+            output_dir=output_dir
+        )
+        
+        generator.generate()
         click.echo(f"Successfully generated traffic for student: {student_id}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
@@ -105,18 +122,27 @@ def test():
 @cli.command()
 @click.option('--output-dir', default='output', help='Output directory to clean.')
 def clean(output_dir):
-    """Remove all generated output files."""
+    """Remove generated output, __pycache__, and pytest cache."""
+    # 1. Clean output directory
     if os.path.exists(output_dir):
         click.echo(f"Cleaning {output_dir}...")
         try:
-            # We use sudo if needed, but here we try simple deletion first
             shutil.rmtree(output_dir)
-            click.echo("Done.")
         except PermissionError:
-            click.echo(f"Permission denied. Try running with sudo: sudo rm -rf {output_dir}", err=True)
-            sys.exit(1)
-    else:
-        click.echo(f"Directory {output_dir} does not exist.")
+            click.echo(f"Permission denied for {output_dir}. Use sudo to clean it.", err=True)
+    
+    # 2. Clean __pycache__ and .pytest_cache recursively
+    click.echo("Cleaning python cache files...")
+    for root, dirs, files in os.walk(".", topdown=False):
+        for name in dirs:
+            if name == "__pycache__" or name == ".pytest_cache":
+                dir_path = os.path.join(root, name)
+                try:
+                    shutil.rmtree(dir_path)
+                except Exception:
+                    pass # Best effort for cache cleanup
+    
+    click.echo("Done.")
 
 if __name__ == '__main__':
     cli()
