@@ -8,8 +8,8 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Project Specific
-output/
+# IDEs and Tools
+.claude/
 .agents/
-skills-lock.json
-GEMINI.md
+.vscode/
+.idea/
