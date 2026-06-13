@@ -40,8 +40,16 @@ class BackgroundServer:
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.daemon = True
         self.thread.start()
-        # Give it a moment to bind
-        time.sleep(1)
+        
+        # Poll until server is ready (max 2 seconds)
+        import socket
+        start_time = time.time()
+        while time.time() - start_time < 2:
+            try:
+                with socket.create_connection((self.host, self.port), timeout=0.1):
+                    break
+            except (ConnectionRefusedError, socket.timeout):
+                time.sleep(0.05)
 
     def stop(self):
         """Stops the background server."""
