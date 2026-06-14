@@ -18,7 +18,7 @@ class PCAPApp(App):
     #sidebar { width: 30; background: $surface; border-right: vkey $accent; }
     #main { width: 100%; height: 100%; padding: 2; }
     .title { padding: 1; text-align: center; text-style: bold; }
-    .clickable { cursor: pointer; color: $text; }
+    .clickable { color: $text; }
     .clickable:hover { color: $accent; text-style: underline; }
     """
 
