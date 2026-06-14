@@ -29,13 +29,15 @@ class TrafficEngine:
         enabled_attacks: Optional[List[str]] = None,
         num_requests: Optional[int] = None,
         attack_count: Optional[int] = None,
-        attack_ratio: Optional[float] = None
+        attack_ratio: Optional[float] = None,
+        obfuscation_level: int = 1
     ):
         self.student_id = student_id
         self.enabled_attacks = enabled_attacks
         self.num_requests = num_requests
         self.attack_count = attack_count
         self.attack_ratio = attack_ratio
+        self.obfuscation_level = obfuscation_level
         
         self.seed = init_seed(student_id)
         self.client = client or TrafficClient()
@@ -55,7 +57,9 @@ class TrafficEngine:
                 try:
                     module = importlib.import_module(module_path, package="generator")
                     attack_class = getattr(module, class_name)
-                    strategies.append(attack_class())
+                    strategy = attack_class()
+                    strategy.set_obfuscation_level(self.obfuscation_level)
+                    strategies.append(strategy)
                 except (ImportError, AttributeError) as e:
                     print(f"Warning: Could not load attack {name}: {e}")
         

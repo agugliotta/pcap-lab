@@ -15,45 +15,53 @@ def cli():
     pass
 
 @cli.command()
-@click.argument('student_id')
+@click.argument('student_ids', nargs=-1)
 @click.argument('interface')
 @click.option('--output-dir', default='output', help='Base directory for generated files.')
+@click.option('--students-file', type=click.Path(exists=True), help='File containing a list of student IDs (one per line).')
 @click.option('--attacks', help='Comma-separated list of attack types to include (e.g. sqli,xss).')
 @click.option('--requests', type=int, help='Exact number of total requests to generate.')
 @click.option('--attack-count', type=int, help='Exact number of attacks to generate.')
 @click.option('--attack-ratio', type=float, help='Ratio of attacks to total requests (float between 0.0 and 1.0).')
-def generate(student_id, interface, output_dir, attacks, requests, attack_count, attack_ratio):
-    """Generate deterministic HTTP traffic and capture it to a PCAP file."""
+@click.option('--jobs', type=int, default=1, help='Number of parallel jobs for generation.')
+def generate(student_ids, interface, output_dir, students_file, attacks, requests, attack_count, attack_ratio, jobs):
+    """Generate deterministic HTTP traffic and capture it to a PCAP file for one or more students."""
     from generator.traffic_engine import TrafficEngine
     from generator.pcap_generator import PcapGenerator
     
     if os.geteuid() != 0:
         click.echo("Warning: Generating traffic usually requires sudo for packet capture.", err=True)
     
+    final_student_ids = list(student_ids)
+    if students_file:
+        with open(students_file, 'r') as f:
+            final_student_ids.extend([line.strip() for line in f if line.strip()])
+            
+    if not final_student_ids:
+        click.echo("Error: No student IDs provided via arguments or --students-file.", err=True)
+        sys.exit(1)
+        
     enabled_attacks = None
     if attacks:
         enabled_attacks = [a.strip().lower() for a in attacks.split(',')]
     
-    try:
-        engine = TrafficEngine(
+    engines = []
+    for student_id in final_student_ids:
+        engines.append(TrafficEngine(
             student_id=student_id,
             enabled_attacks=enabled_attacks,
             num_requests=requests,
             attack_count=attack_count,
             attack_ratio=attack_ratio
-        )
+        ))
         
-        generator = PcapGenerator(
-            engine=engine,
-            interface=interface,
-            output_dir=output_dir
-        )
-        
-        generator.generate()
-        click.echo(f"Successfully generated traffic for student: {student_id}")
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
+    generator = PcapGenerator(
+        interface=interface,
+        output_dir=output_dir
+    )
+    
+    generator.generate_batch(engines=engines, jobs=jobs)
+    click.echo(f"Successfully generated traffic for {len(final_student_ids)} students.")
 
 @cli.command()
 @click.argument('interface')
@@ -120,29 +128,16 @@ def test():
         sys.exit(e.returncode)
 
 @cli.command()
-@click.option('--output-dir', default='output', help='Output directory to clean.')
-def clean(output_dir):
-    """Remove generated output, __pycache__, and pytest cache."""
-    # 1. Clean output directory
-    if os.path.exists(output_dir):
-        click.echo(f"Cleaning {output_dir}...")
-        try:
-            shutil.rmtree(output_dir)
-        except PermissionError:
-            click.echo(f"Permission denied for {output_dir}. Use sudo to clean it.", err=True)
+def shell():
+    """Launch the interactive Pcap-Lab Shell."""
+    import subprocess
+    import sys
     
-    # 2. Clean __pycache__ and .pytest_cache recursively
-    click.echo("Cleaning python cache files...")
-    for root, dirs, files in os.walk(".", topdown=False):
-        for name in dirs:
-            if name == "__pycache__" or name == ".pytest_cache":
-                dir_path = os.path.join(root, name)
-                try:
-                    shutil.rmtree(dir_path)
-                except Exception:
-                    pass # Best effort for cache cleanup
-    
-    click.echo("Done.")
+    # Run the interactive shell
+    try:
+        subprocess.run([sys.executable, "-m", "generator.shell"], check=True)
+    except subprocess.CalledProcessError as e:
+        sys.exit(e.returncode)
 
 if __name__ == '__main__':
     cli()

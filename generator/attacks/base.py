@@ -7,6 +7,12 @@ class BaseAttack(TrafficStrategy):
     Abstract Base Class for all attack types.
     """
     
+    def __init__(self):
+        self.obfuscation_level = 1
+
+    def set_obfuscation_level(self, level: int):
+        self.obfuscation_level = level
+    
     @abstractmethod
     def generate(self, base_url: str) -> Tuple[Dict, Dict]:
         """

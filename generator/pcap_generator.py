@@ -1,8 +1,8 @@
 import os
 import json
 import time
-from typing import Optional
-from .config import SERVER_HOST, SERVER_PORT, BASE_URL
+from concurrent.futures import ProcessPoolExecutor
+from .config import SERVER_HOST
 from .utils.server import BackgroundServer
 from .utils.capture import packet_capture
 from .traffic_engine import TrafficEngine
@@ -12,47 +12,57 @@ class PcapGenerator:
     Orchestrates the server, packet capture, and traffic engine.
     """
     
-    def __init__(self, engine: TrafficEngine, interface: str, output_dir: str = "output"):
-        self.engine = engine
+    def __init__(self, interface: str, output_dir: str = "output"):
         self.interface = interface
         self.output_dir = output_dir
         
-        # Setup output paths
-        self.student_dir = os.path.join(self.output_dir, self.engine.student_id)
-        self.pcap_file = os.path.join(self.student_dir, "traffic.pcap")
-        self.key_file = os.path.join(self.student_dir, "answer_key.json")
+    def _generate_single(self, engine: TrafficEngine):
+        """
+        Runs the full generation process for a single student engine.
+        This method is designed to be called in a separate process.
+        """
+        student_dir = os.path.join(self.output_dir, engine.student_id)
+        pcap_file = os.path.join(student_dir, "traffic.pcap")
+        key_file = os.path.join(student_dir, "answer_key.json")
         
-        os.makedirs(self.student_dir, exist_ok=True)
-
-    def generate(self):
-        """
-        Runs the full generation process.
-        """
-        server = BackgroundServer(host=SERVER_HOST, port=SERVER_PORT)
+        os.makedirs(student_dir, exist_ok=True)
+        
+        server = BackgroundServer(host=SERVER_HOST, port=0)
         server.start()
-        print(f"Server started on {BASE_URL}")
+        print(f"Server started on http://{server.host}:{server.port} for student: {engine.student_id}")
         
         try:
             # Start Capture
-            with packet_capture(self.interface, self.pcap_file, capture_filter=f"port {SERVER_PORT}"):
+            with packet_capture(self.interface, pcap_file, capture_filter=f"port {server.port}"):
                 
-                print(f"Generating traffic for student: {self.engine.student_id}...")
+                print(f"Generating traffic for student: {engine.student_id}...")
                 start_time = time.time()
                 
                 # Execute Traffic
-                answer_data = self.engine.run()
+                answer_data = engine.run()
                 
                 duration = time.time() - start_time
-                print(f"Traffic generation complete in {duration:.2f}s")
+                print(f"Traffic generation complete for student {engine.student_id} in {duration:.2f}s")
                 
                 # Save Answer Key
-                with open(self.key_file, "w") as f:
+                with open(key_file, "w") as f:
                     json.dump(answer_data, f, indent=2)
-                print(f"Answer key saved to {self.key_file}")
+                print(f"Answer key saved to {key_file}")
                 
         except Exception as e:
-            print(f"\nError during generation: {e}")
+            print(f"\nError during generation for student {engine.student_id}: {e}")
             raise
         finally:
             server.stop()
-            print("Server stopped.")
+            print(f"Server stopped for student: {engine.student_id}")
+
+    def generate_batch(self, engines: list[TrafficEngine], jobs: int = 1):
+        """
+        Runs the generation process for multiple engines (sequential or parallel).
+        """
+        if jobs <= 1:
+            for engine in engines:
+                self._generate_single(engine)
+        else:
+            with ProcessPoolExecutor(max_workers=jobs) as executor:
+                executor.map(self._generate_single, engines)

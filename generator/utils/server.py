@@ -28,7 +28,7 @@ class QuietHandler(BaseHTTPRequestHandler):
         pass
 
 class BackgroundServer:
-    def __init__(self, host="127.0.0.1", port=8080):
+    def __init__(self, host="127.0.0.1", port=0):
         self.host = host
         self.port = port
         self.server = None
@@ -37,6 +37,9 @@ class BackgroundServer:
     def start(self):
         """Starts the server in a background thread."""
         self.server = HTTPServer((self.host, self.port), QuietHandler)
+        # If port was 0, retrieve the port actually assigned by the OS
+        self.port = self.server.server_port
+        
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.daemon = True
         self.thread.start()
