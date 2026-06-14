@@ -38,6 +38,7 @@ class PcapLabShell:
 
     def configure(self):
         while True:
+            # Re-print banner before the prompt
             self.print_banner("Settings")
             choice = questionary.select(
                 "Select setting to configure:",
@@ -55,6 +56,8 @@ class PcapLabShell:
             if choice == "Back":
                 break
             
+            # Clear again before input to ensure clean input area
+            self.clear_screen()
             if "Student List" in choice:
                 self.config['student_list'] = questionary.text("Enter student list (comma-separated):", default=self.config['student_list']).ask()
             elif "Student File" in choice:
@@ -79,6 +82,7 @@ class PcapLabShell:
             if choice == "Quit":
                 break
             elif choice == "Clean Output":
+                self.clear_screen()
                 if os.path.exists("output"):
                     shutil.rmtree("output")
                     print("Output cleaned.")
@@ -88,6 +92,7 @@ class PcapLabShell:
             elif choice == "Configure":
                 self.configure()
             elif choice == "Run Generation":
+                self.clear_screen()
                 if not self.config['student_list'] and not self.config['student_file']:
                     print("Error: Set students list or file first!")
                     input("\nPress Enter to continue...")
