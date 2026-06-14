@@ -6,8 +6,8 @@ from generator.traffic_engine import TrafficEngine
 from generator.pcap_generator import PcapGenerator
 
 class Sidebar(Tree):
-    def __init__(self):
-        super().__init__("PCAP Lab")
+    def __init__(self, **kwargs):
+        super().__init__("PCAP Lab", **kwargs)
         self.root.expand()
         self.root.add_leaf("Dashboard", data="dashboard")
         self.root.add_leaf("Attacks", data="attacks")
@@ -41,7 +41,7 @@ class MainPanel(ContentSwitcher):
 class PCAPApp(App):
     CSS = """
     Screen { background: $surface; }
-    #sidebar { width: 20; border-right: vkey $accent; background: $surface; }
+    #sidebar { width: 25; border-right: solid $accent; background: $surface; }
     .padded { padding: 1; }
     .panel-title { text-style: bold; padding: 1; }
     """
@@ -58,7 +58,7 @@ class PCAPApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
-            yield Sidebar()
+            yield Sidebar(id="sidebar")
             yield MainPanel(initial="dashboard", id="main")
         yield Footer()
 
@@ -73,7 +73,9 @@ class PCAPApp(App):
         
         for i, attack in enumerate(self.available_attacks):
             status = "[x]" if attack in self.enabled_attacks else "[ ]"
-            attacks_container.mount(Label(f"  {status} {attack} ({i})"))
+            label = Label(f"  {status} {attack} ({i})")
+            attacks_container.mount(label)
+        self.refresh()
 
     def on_key(self, event):
         if self.query_one(ContentSwitcher).current == "attacks":
