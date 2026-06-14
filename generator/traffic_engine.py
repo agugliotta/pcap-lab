@@ -1,27 +1,17 @@
 import random
 from typing import List, Dict, Optional, Type
-from .config import BASE_URL, MIN_REQUESTS, MAX_REQUESTS, ATTACK_PROBABILITY
-from .utils.seed import init_seed
-from .traffic.base import TrafficStrategy
-from .traffic.normal import NormalTraffic
-from .utils.http_client import TrafficClient
+from generator.attack_registry import AttackRegistry
+from generator.traffic.base import TrafficStrategy
+from generator.traffic.normal import NormalTraffic
+from generator.utils.http_client import TrafficClient
+from generator.utils.seed import init_seed
+from generator.config import BASE_URL, MIN_REQUESTS, MAX_REQUESTS, ATTACK_PROBABILITY
 
 class TrafficEngine:
     """
     Handles the deterministic simulation loop and traffic generation.
     """
     
-    # Map of attack names to their module and class names for lazy loading
-    ATTACK_REGISTRY = {
-        "sqli": (".attacks.sqli", "SQLIAttack"),
-        "xss": (".attacks.xss", "XSSAttack"),
-        "idor": (".attacks.idor", "IDORAttack"),
-        "csrf": (".attacks.csrf", "CSRFAttack"),
-        "rce": (".attacks.rce", "RCEAttack"),
-        "lfi": (".attacks.lfi", "LFIAttack"),
-        "cmdi": (".attacks.cmdi", "CMDIAttack")
-    }
-
     def __init__(
         self, 
         student_id: str, 
@@ -42,26 +32,20 @@ class TrafficEngine:
         self.seed = init_seed(student_id)
         self.client = client or TrafficClient()
         self.normal_strategy = NormalTraffic()
+        self.registry = AttackRegistry()
         self.attack_strategies = self._load_attack_strategies()
 
     def _load_attack_strategies(self) -> List[TrafficStrategy]:
-        """Instantiates the enabled attack classes using lazy loading."""
-        import importlib
-        
-        target_attacks = self.enabled_attacks if self.enabled_attacks else self.ATTACK_REGISTRY.keys()
+        """Instantiates the enabled attack classes using the dynamic registry."""
+        target_attacks = self.enabled_attacks if self.enabled_attacks else self.registry.get_all_attack_names()
         strategies = []
         
         for name in target_attacks:
-            if name in self.ATTACK_REGISTRY:
-                module_path, class_name = self.ATTACK_REGISTRY[name]
-                try:
-                    module = importlib.import_module(module_path, package="generator")
-                    attack_class = getattr(module, class_name)
-                    strategy = attack_class()
-                    strategy.set_obfuscation_level(self.obfuscation_level)
-                    strategies.append(strategy)
-                except (ImportError, AttributeError) as e:
-                    print(f"Warning: Could not load attack {name}: {e}")
+            attack_class = self.registry.get_attack_class(name)
+            if attack_class:
+                strategy = attack_class()
+                strategy.set_obfuscation_level(self.obfuscation_level)
+                strategies.append(strategy)
         
         return strategies
 
