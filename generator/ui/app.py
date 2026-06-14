@@ -75,6 +75,7 @@ class PCAPApp(App):
             status = "[x]" if attack in self.enabled_attacks else "[ ]"
             label = Label(f"  {status} {attack} ({i})")
             attacks_container.mount(label)
+
         self.refresh()
 
     def on_key(self, event):
