@@ -63,22 +63,26 @@ class PCAPApp(App):
         yield Footer()
 
     def on_mount(self):
+        self.notify(f"Init attacks: {self.enabled_attacks}")
         self.render_attacks()
+def render_attacks(self):
+    attacks_container = self.query_one("#attacks", Container)
 
-    def render_attacks(self):
-        attacks_container = self.query_one("#attacks", Container)
-        # Clear previous attacks, keeping only the title
-        for child in attacks_container.query("Label")[1:]:
-            child.remove()
-        
-        for i, attack in enumerate(self.available_attacks):
-            status = "[x]" if attack in self.enabled_attacks else "[ ]"
-            label = Label(f"  {status} {attack} ({i})")
-            attacks_container.mount(label)
+    # Remove old attack labels
+    for child in attacks_container.query("Label")[1:]:
+        child.remove()
 
-        self.refresh()
+    # Mount new labels with explicit status
+    for i, attack in enumerate(self.available_attacks):
+        status = "[x]" if attack in self.enabled_attacks else "[ ]"
+        label = Label(f"  {status} {attack} ({i})")
+        attacks_container.mount(label)
+
+    attacks_container.refresh(layout=True)
+
 
     def on_key(self, event):
+        self.notify(f"Key: {event.key}")
         if self.query_one(ContentSwitcher).current == "attacks":
             key = event.key
             if key in [str(i) for i in range(len(self.available_attacks))]:
@@ -87,6 +91,7 @@ class PCAPApp(App):
                     self.enabled_attacks.remove(attack)
                 else:
                     self.enabled_attacks.append(attack)
+                self.notify(f"Toggled {attack}: {attack in self.enabled_attacks}")
                 self.render_attacks()
 
     def on_tree_node_selected(self, event: Tree.NodeSelected):
