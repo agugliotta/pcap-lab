@@ -1,28 +1,54 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Label, Input, ContentSwitcher, ListView, ListItem
-from textual.containers import Container, Vertical, Horizontal
+from textual.widgets import Header, Footer, Tree, ContentSwitcher, Input, Label
+from textual.containers import Container, Horizontal, Vertical
+from textual.binding import Binding
 from generator.traffic_engine import TrafficEngine
 from generator.pcap_generator import PcapGenerator
 
-class ClickableLabel(Label):
-    def __init__(self, text, id=None, callback=None):
-        super().__init__(text, id=id)
-        self.callback = callback
+class Sidebar(Tree):
+    def __init__(self):
+        super().__init__("PCAP Lab")
+        self.root.expand()
+        self.root.add_leaf("Dashboard", data="dashboard")
+        self.root.add_leaf("Attacks", data="attacks")
+        self.root.add_leaf("Settings", data="settings")
 
-    def on_click(self):
-        if self.callback:
-            self.callback()
+class MainPanel(ContentSwitcher):
+    def compose(self) -> ComposeResult:
+        with Container(id="dashboard"):
+            art = [
+                " ____   ____    _    ____  ",
+                "|  _ \\ / ___|  / \\  |  _ \\ ",
+                "| |_) | |     / _ \\ | |_) |",
+                "|  __/| |___ / ___ \\|  __/ ",
+                "|_|    \\____/_/   \\_\\_|    "
+            ]
+            for line in art:
+                yield Label(line)
+            yield Label("============================================")
+            yield Label("Version: v0.3 | Author: Agustín Gugliotta")
+            yield Label("GitHub: github.com/agugliotta")
+            yield Label("============================================")
+            yield Label("Status: Idle")
+            yield Label("Press [ctrl+r] to run generation")
+        with Container(id="attacks", classes="padded"):
+            yield Label("--- Attacks (Toggle with [0-6]) ---")
+            # Attack items will be mounted dynamically
+        with Container(id="settings", classes="padded"):
+            yield Label("--- Settings ---")
+            yield Input(placeholder="Student File Path", id="student_file")
 
 class PCAPApp(App):
     CSS = """
-    #sidebar { width: 30; background: $surface; border-right: vkey $accent; }
-    #main { width: 100%; height: 100%; padding: 2; }
-    .title { padding: 1; text-align: center; text-style: bold; }
-    .clickable { color: $text; }
-    .clickable:hover { color: $accent; text-style: underline; }
+    Screen { background: $surface; }
+    #sidebar { width: 20; border-right: vkey $accent; background: $surface; }
+    .padded { padding: 1; }
+    .panel-title { text-style: bold; padding: 1; }
     """
-
-    BINDINGS = [("q", "quit", "Quit")]
+    BINDINGS = [
+        Binding("ctrl+q", "quit", "Quit"),
+        Binding("ctrl+r", "run", "Run Batch"),
+    ]
 
     def __init__(self):
         super().__init__()
@@ -32,43 +58,41 @@ class PCAPApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
-            with Vertical(id="sidebar"):
-                yield Label("Menu", classes="title")
-                yield ListView(
-                    ListItem(Label("  Dashboard"), id="dashboard"),
-                    ListItem(Label("  Attacks"), id="attacks"),
-                    ListItem(Label("  Settings"), id="settings"),
-                    id="menu"
-                )
-            with ContentSwitcher(initial="dashboard", id="main"):
-                with Container(id="dashboard"):
-                    yield Label("PCAP Lab Control Center")
-                    yield ClickableLabel("  [ Run Generation ]", id="run_btn", callback=self.run_generation)
-                with Container(id="attacks"):
-                    yield Label("Toggle Attacks:")
-                    for attack in self.available_attacks:
-                        status = "[x]" if attack in self.enabled_attacks else "[ ]"
-                        yield ClickableLabel(f"  {status} {attack}", id=f"attack_{attack}", callback=lambda a=attack: self.toggle_attack(a))
-                with Container(id="settings"):
-                    yield Label("Settings")
-                    yield Input(placeholder="Enter Student File Path...", id="student_file")
+            yield Sidebar()
+            yield MainPanel(initial="dashboard", id="main")
         yield Footer()
 
-    def toggle_attack(self, attack):
-        if attack in self.enabled_attacks:
-            self.enabled_attacks.remove(attack)
-        else:
-            self.enabled_attacks.append(attack)
-        # Refresh the attacks view
-        self.refresh()
+    def on_mount(self):
+        self.render_attacks()
 
-    def on_list_view_selected(self, event: ListView.Selected):
-        self.query_one(ContentSwitcher).current = event.item.id
+    def render_attacks(self):
+        attacks_container = self.query_one("#attacks", Container)
+        # Clear previous attacks, keeping only the title
+        for child in attacks_container.query("Label")[1:]:
+            child.remove()
+        
+        for i, attack in enumerate(self.available_attacks):
+            status = "[x]" if attack in self.enabled_attacks else "[ ]"
+            attacks_container.mount(Label(f"  {status} {attack} ({i})"))
 
-    def run_generation(self):
+    def on_key(self, event):
+        if self.query_one(ContentSwitcher).current == "attacks":
+            key = event.key
+            if key in [str(i) for i in range(len(self.available_attacks))]:
+                attack = self.available_attacks[int(key)]
+                if attack in self.enabled_attacks:
+                    self.enabled_attacks.remove(attack)
+                else:
+                    self.enabled_attacks.append(attack)
+                self.render_attacks()
+
+    def on_tree_node_selected(self, event: Tree.NodeSelected):
+        if event.node.data:
+            self.query_one(ContentSwitcher).current = event.node.data
+
+    def action_run(self):
         student_file = self.query_one("#student_file", Input).value
-        # (Generation logic similar to before)
-        self.query_one("#dashboard").add_child(Label(f"Generation started with {student_file}"))
+        self.notify(f"Running generation for {student_file}...")
 
 if __name__ == "__main__":
     PCAPApp().run()
