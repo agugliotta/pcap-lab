@@ -65,21 +65,20 @@ class PCAPApp(App):
     def on_mount(self):
         self.notify(f"Init attacks: {self.enabled_attacks}")
         self.render_attacks()
-def render_attacks(self):
-    attacks_container = self.query_one("#attacks", Container)
 
-    # Remove old attack labels
-    for child in attacks_container.query("Label")[1:]:
-        child.remove()
-
-    # Mount new labels with explicit status
-    for i, attack in enumerate(self.available_attacks):
-        status = "[x]" if attack in self.enabled_attacks else "[ ]"
-        label = Label(f"  {status} {attack} ({i})")
-        attacks_container.mount(label)
-
-    attacks_container.refresh(layout=True)
-
+    def render_attacks(self):
+        attacks_container = self.query_one("#attacks", Container)
+        # Remove old attack labels
+        for child in attacks_container.query("Label")[1:]:
+            child.remove()
+        
+        # Mount new labels with explicit status
+        for i, attack in enumerate(self.available_attacks):
+            status = "[x]" if attack in self.enabled_attacks else "[ ]"
+            label = Label(f"  {status} {attack} ({i})")
+            attacks_container.mount(label)
+        
+        attacks_container.refresh(layout=True)
 
     def on_key(self, event):
         self.notify(f"Key: {event.key}")
