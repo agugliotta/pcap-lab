@@ -6,6 +6,9 @@ from generator.traffic_engine import TrafficEngine
 from generator.pcap_generator import PcapGenerator
 
 class PcapLabShell:
+    """
+    Provides an interactive CLI interface for configuring and executing traffic generation.
+    """
     def __init__(self):
         self.config = {
             "student_list": "",
@@ -14,6 +17,7 @@ class PcapLabShell:
             "requests": 50,
             "attack_ratio": 0.3,
             "obfuscation": 1,
+            "jobs": 4,
             "enabled_attacks": ["sqli", "xss", "idor", "csrf", "rce", "lfi", "cmdi"]
         }
         self.art = [
@@ -38,7 +42,6 @@ class PcapLabShell:
 
     def configure(self):
         while True:
-            # Re-print banner before the prompt
             self.print_banner("Settings")
             choice = questionary.select(
                 "Select setting to configure:",
@@ -49,6 +52,7 @@ class PcapLabShell:
                     f"Requests: {self.config['requests']}",
                     f"Attack Ratio: {self.config['attack_ratio']}",
                     f"Obfuscation: {self.config['obfuscation']}",
+                    f"Jobs: {self.config['jobs']}",
                     "Back"
                 ]
             ).ask()
@@ -56,7 +60,6 @@ class PcapLabShell:
             if choice == "Back":
                 break
             
-            # Clear again before input to ensure clean input area
             self.clear_screen()
             if "Student List" in choice:
                 self.config['student_list'] = questionary.text("Enter student list (comma-separated):", default=self.config['student_list']).ask()
@@ -70,6 +73,8 @@ class PcapLabShell:
                 self.config['attack_ratio'] = float(questionary.text("Enter ratio:", default=str(self.config['attack_ratio'])).ask())
             elif "Obfuscation" in choice:
                 self.config['obfuscation'] = int(questionary.text("Enter level (1-3):", default=str(self.config['obfuscation'])).ask())
+            elif "Jobs" in choice:
+                self.config['jobs'] = int(questionary.text("Enter number of parallel jobs:", default=str(self.config['jobs'])).ask())
 
     def run_menu(self):
         while True:
@@ -99,7 +104,6 @@ class PcapLabShell:
                     continue
                 
                 print("\nGenerating...")
-                # Simplified generation logic
                 student_ids = []
                 if self.config['student_file']:
                     with open(self.config['student_file'], 'r') as f:
@@ -116,7 +120,7 @@ class PcapLabShell:
                 ) for sid in student_ids]
                 
                 generator = PcapGenerator(interface=self.config['interface'])
-                generator.generate_batch(engines=engines, jobs=4)
+                generator.generate_batch(engines=engines, jobs=self.config['jobs'])
                 print("Batch Complete!")
                 input("\nPress Enter to continue...")
 

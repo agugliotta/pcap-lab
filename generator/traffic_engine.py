@@ -10,6 +10,10 @@ from generator.config import BASE_URL, MIN_REQUESTS, MAX_REQUESTS, ATTACK_PROBAB
 class TrafficEngine:
     """
     Handles the deterministic simulation loop and traffic generation.
+    
+    This engine uses a student-specific seed to ensure reproducible traffic generation,
+    orchestrating between normal browsing behavior and injected malicious attack vectors
+    based on configured parameters.
     """
     
     def __init__(
@@ -22,6 +26,18 @@ class TrafficEngine:
         attack_ratio: Optional[float] = None,
         obfuscation_level: int = 1
     ):
+        """
+        Initializes the TrafficEngine.
+        
+        Args:
+            student_id (str): Unique identifier for the student/scenario seed.
+            client (TrafficClient, optional): Client instance for HTTP requests.
+            enabled_attacks (List[str], optional): List of attack keys to include.
+            num_requests (int, optional): Total number of requests to generate.
+            attack_count (int, optional): Fixed number of attacks.
+            attack_ratio (float, optional): Ratio of malicious to normal requests.
+            obfuscation_level (int): Level of obfuscation (1-3) for attack payloads.
+        """
         self.student_id = student_id
         self.enabled_attacks = enabled_attacks
         self.num_requests = num_requests
@@ -36,7 +52,12 @@ class TrafficEngine:
         self.attack_strategies = self._load_attack_strategies()
 
     def _load_attack_strategies(self) -> List[TrafficStrategy]:
-        """Instantiates the enabled attack classes using the dynamic registry."""
+        """
+        Instantiates the enabled attack classes using the dynamic registry.
+        
+        Returns:
+            List[TrafficStrategy]: List of initialized attack strategy objects.
+        """
         target_attacks = self.enabled_attacks if self.enabled_attacks else self.registry.get_all_attack_names()
         strategies = []
         
@@ -49,11 +70,20 @@ class TrafficEngine:
         
         return strategies
 
-    def run(self) -> Dict:
+    def run(self, base_url: Optional[str] = None) -> Dict:
         """
-        Executes the traffic generation loop.
-        Returns the data for the answer key.
+        Executes the traffic generation loop based on configured strategy.
+        
+        This method deterministically places attacks within the generated traffic stream,
+        executes requests via the HTTP client, and tracks metadata for the answer key.
+        
+        Args:
+            base_url (str, optional): Override for the base URL. If not provided, uses `config.BASE_URL`.
+            
+        Returns:
+            Dict: Ground truth metadata containing attack information and session details.
         """
+        target_url = base_url or BASE_URL
         total_requests = self.num_requests if self.num_requests is not None else random.randint(MIN_REQUESTS, MAX_REQUESTS)
         
         # Calculate final attack count
@@ -74,7 +104,7 @@ class TrafficEngine:
                 strategy = self.normal_strategy
             
             # Generate and Execute
-            request_kwargs, metadata = strategy.generate(BASE_URL)
+            request_kwargs, metadata = strategy.generate(target_url)
             
             if metadata:
                 executed_attacks.append(metadata)
@@ -86,7 +116,7 @@ class TrafficEngine:
             "student_id": self.student_id,
             "settings": {
                 "num_requests": self.num_requests,
-                "enabled_attacks": self.enabled_attacks if self.enabled_attacks is not None else list(self.ATTACK_REGISTRY.keys()),
+                "enabled_attacks": self.enabled_attacks if self.enabled_attacks is not None else list(self.registry.get_all_attack_names()),
                 "attack_count": self.attack_count,
                 "attack_ratio": self.attack_ratio
             },
@@ -95,6 +125,15 @@ class TrafficEngine:
         }
 
     def _calculate_attack_count(self, total_requests: int) -> int:
+        """
+        Calculates the number of attacks to inject based on provided parameters.
+        
+        Args:
+            total_requests (int): The total number of requests planned.
+            
+        Returns:
+            int: The calculated number of malicious requests.
+        """
         if self.attack_count is not None:
             return min(total_requests, self.attack_count)
         if self.attack_ratio is not None:

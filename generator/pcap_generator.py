@@ -39,7 +39,7 @@ class PcapGenerator:
                 start_time = time.time()
                 
                 # Execute Traffic
-                answer_data = engine.run()
+                answer_data = engine.run(base_url=f"http://{server.host}:{server.port}")
                 
                 duration = time.time() - start_time
                 print(f"Traffic generation complete for student {engine.student_id} in {duration:.2f}s")
