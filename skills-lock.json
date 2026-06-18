@@ -13,6 +13,12 @@
       "skillPath": "skills/git-commit/SKILL.md",
       "computedHash": "2607fc60629b82b257136dd2a7a373f0a4466c0b49df7746d845d59313c99b21"
     },
+    "improve-codebase-architecture": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
+      "computedHash": "ef32aea0a8fab9b365ff9e08a95f8d353e20ca21ea46ec2e73587c86dd341351"
+    },
     "linkedin-post-formatter": {
       "source": "github/awesome-copilot",
       "sourceType": "github",

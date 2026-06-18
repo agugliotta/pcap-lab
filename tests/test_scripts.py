@@ -11,6 +11,7 @@ def test_main_generate_usage():
     assert "--requests" in result.stdout
     assert "--attack-count" in result.stdout
     assert "--attack-ratio" in result.stdout
+    assert "--obfuscation" in result.stdout
 
 
 

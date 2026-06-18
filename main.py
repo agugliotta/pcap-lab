@@ -24,7 +24,8 @@ def cli():
 @click.option('--attack-count', type=int, help='Exact number of attacks to generate.')
 @click.option('--attack-ratio', type=float, help='Ratio of attacks to total requests (float between 0.0 and 1.0).')
 @click.option('--jobs', type=int, default=1, help='Number of parallel jobs for generation.')
-def generate(student_ids, interface, output_dir, students_file, attacks, requests, attack_count, attack_ratio, jobs):
+@click.option('--obfuscation', type=int, default=1, help='Obfuscation level (1-3) for attack payloads.')
+def generate(student_ids, interface, output_dir, students_file, attacks, requests, attack_count, attack_ratio, jobs, obfuscation):
     """Generate deterministic HTTP traffic and capture it to a PCAP file for one or more students."""
     from generator.traffic_engine import TrafficEngine
     from generator.pcap_generator import PcapGenerator
@@ -52,7 +53,8 @@ def generate(student_ids, interface, output_dir, students_file, attacks, request
             enabled_attacks=enabled_attacks,
             num_requests=requests,
             attack_count=attack_count,
-            attack_ratio=attack_ratio
+            attack_ratio=attack_ratio,
+            obfuscation_level=obfuscation
         ))
         
     generator = PcapGenerator(

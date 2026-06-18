@@ -83,6 +83,9 @@ class TrafficEngine:
         Returns:
             Dict: Ground truth metadata containing attack information and session details.
         """
+        # Ensure determinism by seeding the global random generator at execution time
+        random.seed(self.seed)
+        
         target_url = base_url or BASE_URL
         total_requests = self.num_requests if self.num_requests is not None else random.randint(MIN_REQUESTS, MAX_REQUESTS)
         

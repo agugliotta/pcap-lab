@@ -44,7 +44,7 @@ def packet_capture(interface: str, output_file: str, capture_filter: str = "port
         stdout=subprocess.DEVNULL, 
         stderr=subprocess.PIPE,
         text=True,
-        preexec_fn=os.setsid  # Start in new session to kill process group later
+        start_new_session=True  # Start in new session to kill process group later
     )
     
     # Wait for tcpdump to initialize

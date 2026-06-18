@@ -155,3 +155,23 @@ def test_generate_batch(mock_capture, mock_server):
     assert mock_engine1.run.called
     assert mock_engine2.run.called
     assert mock_server.return_value.start.call_count == 2
+
+@patch('generator.pcap_generator.ProcessPoolExecutor')
+def test_generate_batch_parallel(mock_executor):
+    """
+    Regression test: Ensure ProcessPoolExecutor is used for parallel batch generation.
+    """
+    mock_engine1 = MagicMock(spec=TrafficEngine)
+    mock_engine1.student_id = "student1"
+    mock_engine2 = MagicMock(spec=TrafficEngine)
+    mock_engine2.student_id = "student2"
+    engines = [mock_engine1, mock_engine2]
+    
+    generator = PcapGenerator(interface="lo")
+    
+    # Test parallel
+    generator.generate_batch(engines, jobs=4)
+    
+    # Verify executor was initialized and mapped
+    assert mock_executor.called
+    mock_executor.return_value.__enter__.return_value.map.assert_called_once()

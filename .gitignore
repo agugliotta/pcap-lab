@@ -13,3 +13,6 @@ htmlcov/
 .agents/
 .vscode/
 .idea/
+
+# Lab Output
+output/

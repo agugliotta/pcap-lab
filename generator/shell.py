@@ -2,6 +2,7 @@ import questionary
 import sys
 import os
 import shutil
+import time
 from generator.traffic_engine import TrafficEngine
 from generator.pcap_generator import PcapGenerator
 
@@ -57,24 +58,59 @@ class PcapLabShell:
                 ]
             ).ask()
 
-            if choice == "Back":
+            if choice is None or choice == "Back":
                 break
             
             self.clear_screen()
             if "Student List" in choice:
-                self.config['student_list'] = questionary.text("Enter student list (comma-separated):", default=self.config['student_list']).ask()
+                val = questionary.text("Enter student list (comma-separated):", default=self.config['student_list']).ask()
+                if val is not None:
+                    self.config['student_list'] = val
             elif "Student File" in choice:
-                self.config['student_file'] = questionary.path("Enter student file path:", default=self.config['student_file']).ask()
+                val = questionary.path("Enter student file path:", default=self.config['student_file']).ask()
+                if val is not None:
+                    self.config['student_file'] = val
             elif "Interface" in choice:
-                self.config['interface'] = questionary.text("Enter interface:", default=self.config['interface']).ask()
+                val = questionary.text("Enter interface:", default=self.config['interface']).ask()
+                if val is not None:
+                    self.config['interface'] = val
             elif "Requests" in choice:
-                self.config['requests'] = int(questionary.text("Enter requests:", default=str(self.config['requests'])).ask())
+                val = questionary.text("Enter requests:", default=str(self.config['requests'])).ask()
+                if val is not None:
+                    try:
+                        self.config['requests'] = int(val)
+                    except ValueError:
+                        print("Invalid integer entered!")
+                        time.sleep(1)
             elif "Attack Ratio" in choice:
-                self.config['attack_ratio'] = float(questionary.text("Enter ratio:", default=str(self.config['attack_ratio'])).ask())
+                val = questionary.text("Enter ratio:", default=str(self.config['attack_ratio'])).ask()
+                if val is not None:
+                    try:
+                        self.config['attack_ratio'] = float(val)
+                    except ValueError:
+                        print("Invalid float entered!")
+                        time.sleep(1)
             elif "Obfuscation" in choice:
-                self.config['obfuscation'] = int(questionary.text("Enter level (1-3):", default=str(self.config['obfuscation'])).ask())
+                val = questionary.text("Enter level (1-3):", default=str(self.config['obfuscation'])).ask()
+                if val is not None:
+                    try:
+                        lvl = int(val)
+                        if 1 <= lvl <= 3:
+                            self.config['obfuscation'] = lvl
+                        else:
+                            print("Obfuscation level must be 1, 2, or 3!")
+                            time.sleep(1)
+                    except ValueError:
+                        print("Invalid integer entered!")
+                        time.sleep(1)
             elif "Jobs" in choice:
-                self.config['jobs'] = int(questionary.text("Enter number of parallel jobs:", default=str(self.config['jobs'])).ask())
+                val = questionary.text("Enter number of parallel jobs:", default=str(self.config['jobs'])).ask()
+                if val is not None:
+                    try:
+                        self.config['jobs'] = int(val)
+                    except ValueError:
+                        print("Invalid integer entered!")
+                        time.sleep(1)
 
     def run_menu(self):
         while True:
@@ -84,7 +120,7 @@ class PcapLabShell:
                 choices=["Run Generation", "Configure", "Clean Output", "Quit"]
             ).ask()
 
-            if choice == "Quit":
+            if choice == "Quit" or choice is None:
                 break
             elif choice == "Clean Output":
                 self.clear_screen()
