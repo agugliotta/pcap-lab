@@ -25,6 +25,7 @@ except ImportError:  # pragma: no cover - exercised when dependency is unavailab
     questionary.select = _factory
     questionary.text = _factory
     questionary.path = _factory
+    questionary.confirm = _factory
     sys.modules.setdefault("questionary", questionary)
 
 class PcapLabShell:
@@ -146,8 +147,15 @@ class PcapLabShell:
             elif choice == "Clean Output":
                 self.clear_screen()
                 if os.path.exists("output"):
-                    shutil.rmtree("output")
-                    print("Output cleaned.")
+                    confirmed = questionary.confirm(
+                        "Delete the entire output directory?",
+                        default=False,
+                    ).ask()
+                    if confirmed:
+                        shutil.rmtree("output")
+                        print("Output cleaned.")
+                    else:
+                        print("Clean output canceled.")
                 else:
                     print("Nothing to clean.")
                 input("\nPress Enter to continue...")
