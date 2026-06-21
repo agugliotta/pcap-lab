@@ -34,12 +34,12 @@ class PcapGenerator:
         try:
             # Start Capture
             with packet_capture(self.interface, pcap_file, capture_filter=f"port {server.port}"):
-                
-                print(f"Generating traffic for student: {engine.student_id}...")
                 start_time = time.time()
                 
                 # Execute Traffic
-                answer_data = engine.run(base_url=f"http://{server.host}:{server.port}")
+                answer_data = engine.run(
+                    base_url=f"http://{server.host}:{server.port}",
+                )
                 
                 duration = time.time() - start_time
                 print(f"Traffic generation complete for student {engine.student_id} in {duration:.2f}s")
@@ -71,7 +71,7 @@ class PcapGenerator:
                 print(f"[{index}/{total}] Generating {engine.student_id}...")
                 self._generate_single(engine)
         else:
-            print("Running in parallel; progress updates will appear as each student finishes.")
+            print("Running in parallel; each student will report when its PCAP starts and finishes.")
             with ProcessPoolExecutor(max_workers=jobs) as executor:
                 list(executor.map(self._generate_single, engines))
         print("Batch generation complete.")
