@@ -58,7 +58,7 @@ class TrafficEngine:
         Returns:
             List[TrafficStrategy]: List of initialized attack strategy objects.
         """
-        target_attacks = self.enabled_attacks if self.enabled_attacks else self.registry.get_all_attack_names()
+        target_attacks = self.enabled_attacks if self.enabled_attacks is not None else self.registry.get_all_attack_names()
         strategies = []
         
         for name in target_attacks:

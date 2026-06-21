@@ -1,6 +1,7 @@
 import json
 import importlib
 import logging
+from pathlib import Path
 
 class AttackRegistry:
     """
@@ -29,7 +30,11 @@ class AttackRegistry:
             dict: The loaded attack mappings, or an empty dict if loading fails.
         """
         try:
-            with open(self.registry_file, 'r') as f:
+            registry_path = Path(self.registry_file)
+            if not registry_path.is_absolute() and not registry_path.exists():
+                registry_path = Path(__file__).resolve().parent / registry_path.name
+
+            with open(registry_path, 'r') as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logging.error(f"Failed to load attack registry: {e}")

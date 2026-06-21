@@ -65,4 +65,4 @@ class PcapGenerator:
                 self._generate_single(engine)
         else:
             with ProcessPoolExecutor(max_workers=jobs) as executor:
-                executor.map(self._generate_single, engines)
+                list(executor.map(self._generate_single, engines))

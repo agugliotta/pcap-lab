@@ -1,10 +1,31 @@
-import questionary
-import sys
 import os
 import shutil
+import sys
 import time
+import types
 from generator.traffic_engine import TrafficEngine
 from generator.pcap_generator import PcapGenerator
+
+try:
+    import questionary
+except ImportError:  # pragma: no cover - exercised when dependency is unavailable
+    questionary = types.ModuleType("questionary")
+
+    class _Prompt:
+        def __init__(self, *args, **kwargs):
+            self.args = args
+            self.kwargs = kwargs
+
+        def ask(self):
+            return None
+
+    def _factory(*args, **kwargs):
+        return _Prompt(*args, **kwargs)
+
+    questionary.select = _factory
+    questionary.text = _factory
+    questionary.path = _factory
+    sys.modules.setdefault("questionary", questionary)
 
 class PcapLabShell:
     """

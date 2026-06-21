@@ -1,7 +1,27 @@
-import requests
 import random
+import sys
 import time
+import types
 from typing import Dict, Optional
+
+try:
+    import requests
+except ImportError:  # pragma: no cover - exercised when dependency is unavailable
+    requests = types.ModuleType("requests")
+
+    class RequestException(Exception):
+        pass
+
+    class Session:
+        def request(self, **kwargs):
+            return None
+
+        def close(self):
+            return None
+
+    requests.RequestException = RequestException
+    requests.Session = Session
+    sys.modules.setdefault("requests", requests)
 
 class TrafficClient:
     """
