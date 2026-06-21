@@ -47,6 +47,33 @@ pip install -r requirements.txt
 > [!IMPORTANT]
 > Packet capture (tcpdump) and traffic replay (tcpreplay) require root privileges. Always run generation and replay commands with `sudo`.
 
+## 🖥️ Interactive Shell (`main.py shell`)
+
+For an easier configuration experience, use the interactive shell:
+
+```bash
+sudo .venv/bin/python main.py shell
+```
+
+This interface allows you to:
+- Configure student lists, files, interfaces, and attack parameters (volume, ratio, obfuscation).
+- Easily clean the output directory.
+- Run traffic generation batch jobs directly.
+
+## ⚙️ Configuring Attacks (`attacks.json`)
+
+You can extend or modify the attack library using `generator/attacks.json`. This file maps simple attack keys to their corresponding Python classes in the project structure:
+
+```json
+{
+  "sqli": "generator.attacks.sqli.SQLIAttack",
+  "xss": "generator.attacks.xss.XSSAttack",
+  ...
+}
+```
+
+To add a new attack, define its class and add its path to this registry.
+
 ## ⏱️ Quick Start
 
 Generate a unique trace for a student named `agustin` on the loopback interface:

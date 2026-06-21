@@ -128,3 +128,58 @@ def test_traffic_logic_enabled_attacks(mock_session):
     assert len(result["attacks"]) == 10
     for attack in result["attacks"]:
         assert attack["type"] in ["RCE", "LFI", "CMDI"]
+
+from generator.pcap_generator import PcapGenerator
+
+@patch('generator.pcap_generator.BackgroundServer')
+@patch('generator.pcap_generator.packet_capture')
+def test_generate_batch(mock_capture, mock_server):
+    """
+    Test the batch generation functionality (sequential and parallel).
+    """
+    # Setup mocks
+    mock_engine1 = MagicMock(spec=TrafficEngine)
+    mock_engine1.student_id = "student1"
+    mock_engine1.run.return_value = {"status": "ok"}
+    mock_engine2 = MagicMock(spec=TrafficEngine)
+    mock_engine2.student_id = "student2"
+    mock_engine2.run.return_value = {"status": "ok"}
+    
+    engines = [mock_engine1, mock_engine2]
+    
+    generator = PcapGenerator(interface="lo")
+    
+    # Test sequential
+    generator.generate_batch(engines, jobs=1)
+    
+    assert mock_engine1.run.called
+    assert mock_engine2.run.called
+    assert mock_server.return_value.start.call_count == 2
+
+@patch('generator.pcap_generator.ProcessPoolExecutor')
+def test_generate_batch_parallel(mock_executor):
+    """
+    Regression test: Ensure ProcessPoolExecutor is used for parallel batch generation.
+    """
+    mock_engine1 = MagicMock(spec=TrafficEngine)
+    mock_engine1.student_id = "student1"
+    mock_engine2 = MagicMock(spec=TrafficEngine)
+    mock_engine2.student_id = "student2"
+    engines = [mock_engine1, mock_engine2]
+    
+    generator = PcapGenerator(interface="lo")
+    
+    # Test parallel
+    generator.generate_batch(engines, jobs=4)
+    
+    # Verify executor was initialized and mapped
+    assert mock_executor.called
+    mock_executor.return_value.__enter__.return_value.map.assert_called_once()
+
+def test_generate_batch_empty_queue(capsys):
+    generator = PcapGenerator(interface="lo")
+
+    generator.generate_batch([], jobs=1)
+
+    output = capsys.readouterr().out
+    assert "No students queued for generation." in output

@@ -13,3 +13,7 @@ htmlcov/
 .agents/
 .vscode/
 .idea/
+.DS_Store
+
+# Lab Output
+output/
