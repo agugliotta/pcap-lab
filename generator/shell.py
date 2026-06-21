@@ -5,6 +5,7 @@ import time
 import types
 from generator.traffic_engine import TrafficEngine
 from generator.pcap_generator import PcapGenerator
+from generator.utils.network import default_interface, interface_exists, list_interfaces
 
 try:
     import questionary
@@ -36,7 +37,7 @@ class PcapLabShell:
         self.config = {
             "student_list": "",
             "student_file": "",
-            "interface": "lo",
+            "interface": default_interface(),
             "requests": 50,
             "attack_ratio": 0.3,
             "obfuscation": 1,
@@ -63,9 +64,36 @@ class PcapLabShell:
         if title:
             print(f"--- {title} ---")
 
+    def _student_source_summary(self):
+        sources = []
+        if self.config["student_list"]:
+            sources.append("inline list")
+        if self.config["student_file"]:
+            sources.append("file")
+        return ", ".join(sources) if sources else "not configured"
+
+    def print_config_summary(self):
+        print()
+        print("Current configuration")
+        print(f"  Students: {self._student_source_summary()}")
+        print(f"  Interface: {self.config['interface']}")
+        print(f"  Requests: {self.config['requests']}")
+        print(f"  Attack ratio: {self.config['attack_ratio']}")
+        print(f"  Obfuscation: {self.config['obfuscation']}")
+        print(f"  Jobs: {self.config['jobs']}")
+        print(f"  Enabled attacks: {', '.join(self.config['enabled_attacks'])}")
+
+    def _print_interface_hint(self):
+        interfaces = ", ".join(list_interfaces())
+        if interfaces:
+            print(f"Available interfaces: {interfaces}")
+        else:
+            print("Unable to detect local interfaces automatically.")
+
     def configure(self):
         while True:
             self.print_banner("Settings")
+            self.print_config_summary()
             choice = questionary.select(
                 "Select setting to configure:",
                 choices=[
@@ -100,17 +128,23 @@ class PcapLabShell:
                 val = questionary.text("Enter requests:", default=str(self.config['requests'])).ask()
                 if val is not None:
                     try:
-                        self.config['requests'] = int(val)
+                        requests = int(val)
+                        if requests <= 0:
+                            raise ValueError
+                        self.config['requests'] = requests
                     except ValueError:
-                        print("Invalid integer entered!")
+                        print("Requests must be a positive integer!")
                         time.sleep(1)
             elif "Attack Ratio" in choice:
                 val = questionary.text("Enter ratio:", default=str(self.config['attack_ratio'])).ask()
                 if val is not None:
                     try:
-                        self.config['attack_ratio'] = float(val)
+                        ratio = float(val)
+                        if not 0.0 <= ratio <= 1.0:
+                            raise ValueError
+                        self.config['attack_ratio'] = ratio
                     except ValueError:
-                        print("Invalid float entered!")
+                        print("Attack ratio must be between 0.0 and 1.0!")
                         time.sleep(1)
             elif "Obfuscation" in choice:
                 val = questionary.text("Enter level (1-3):", default=str(self.config['obfuscation'])).ask()
@@ -129,14 +163,18 @@ class PcapLabShell:
                 val = questionary.text("Enter number of parallel jobs:", default=str(self.config['jobs'])).ask()
                 if val is not None:
                     try:
-                        self.config['jobs'] = int(val)
+                        jobs = int(val)
+                        if jobs <= 0:
+                            raise ValueError
+                        self.config['jobs'] = jobs
                     except ValueError:
-                        print("Invalid integer entered!")
+                        print("Jobs must be a positive integer!")
                         time.sleep(1)
 
     def run_menu(self):
         while True:
             self.print_banner("Dashboard")
+            self.print_config_summary()
             choice = questionary.select(
                 "Select action:",
                 choices=["Run Generation", "Configure", "Clean Output", "Quit"]
@@ -165,6 +203,12 @@ class PcapLabShell:
                 self.clear_screen()
                 if not self.config['student_list'] and not self.config['student_file']:
                     print("Error: Set students list or file first!")
+                    input("\nPress Enter to continue...")
+                    continue
+
+                if not interface_exists(self.config["interface"]):
+                    print(f"Error: interface '{self.config['interface']}' does not exist on this machine.")
+                    self._print_interface_hint()
                     input("\nPress Enter to continue...")
                     continue
                 

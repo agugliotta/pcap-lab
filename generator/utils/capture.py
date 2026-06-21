@@ -39,13 +39,18 @@ def packet_capture(interface: str, output_file: str, capture_filter: str = "port
     
     # Start process
     # stdout=subprocess.DEVNULL suppresses packet count output
-    process = subprocess.Popen(
-        cmd, 
-        stdout=subprocess.DEVNULL, 
-        stderr=subprocess.PIPE,
-        text=True,
-        start_new_session=True  # Start in new session to kill process group later
-    )
+    try:
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,  # Start in new session to kill process group later
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "tcpdump is not installed or not available on PATH. Install tcpdump and retry with sudo."
+        ) from exc
     
     # Wait for tcpdump to initialize
     # 0.5s is usually enough for tcpdump to start on modern systems
@@ -54,7 +59,9 @@ def packet_capture(interface: str, output_file: str, capture_filter: str = "port
     # Check if process died early (e.g. permission denied)
     if process.poll() is not None:
         stderr = process.stderr.read()
-        print(f"Error: tcpdump failed to start: {stderr.strip()}")
+        raise RuntimeError(
+            f"tcpdump failed to start on interface {interface}: {stderr.strip() or 'unknown error'}"
+        )
     
     try:
         yield process

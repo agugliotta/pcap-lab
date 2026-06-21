@@ -175,3 +175,11 @@ def test_generate_batch_parallel(mock_executor):
     # Verify executor was initialized and mapped
     assert mock_executor.called
     mock_executor.return_value.__enter__.return_value.map.assert_called_once()
+
+def test_generate_batch_empty_queue(capsys):
+    generator = PcapGenerator(interface="lo")
+
+    generator.generate_batch([], jobs=1)
+
+    output = capsys.readouterr().out
+    assert "No students queued for generation." in output

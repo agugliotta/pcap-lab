@@ -9,6 +9,16 @@ import click
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
+from generator.utils.network import interface_exists, list_interfaces
+
+
+def _interface_hint():
+    interfaces = ", ".join(list_interfaces())
+    if interfaces:
+        return f"Available interfaces: {interfaces}"
+    return "Unable to detect local interfaces automatically."
+
+
 @click.group()
 def cli():
     """PCAP Lab Generator CLI"""
@@ -36,6 +46,7 @@ def cli():
 @click.option("--obfuscation", type=int, default=1, help="Obfuscation level (1-3) for attack payloads.")
 def generate(student_ids, interface, output_dir, students_file, attacks, requests, attack_count, attack_ratio, jobs, obfuscation):
     """Generate deterministic HTTP traffic and capture it to a PCAP file for one or more students."""
+    from generator.attack_registry import AttackRegistry
     from generator.traffic_engine import TrafficEngine
     from generator.pcap_generator import PcapGenerator
 
@@ -51,9 +62,29 @@ def generate(student_ids, interface, output_dir, students_file, attacks, request
         click.echo("Error: No student IDs provided via arguments or --students-file.", err=True)
         sys.exit(1)
 
+    if not interface_exists(interface):
+        click.echo(f"Error: interface '{interface}' does not exist on this machine.", err=True)
+        click.echo(_interface_hint(), err=True)
+        sys.exit(1)
+
     enabled_attacks = None
     if attacks:
         enabled_attacks = [a.strip().lower() for a in attacks.split(",")]
+        available_attacks = set(AttackRegistry().get_all_attack_names())
+        invalid_attacks = [attack for attack in enabled_attacks if attack not in available_attacks]
+        if invalid_attacks:
+            click.echo(
+                "Warning: unknown attack type(s) ignored: " + ", ".join(invalid_attacks),
+                err=True,
+            )
+            click.echo(
+                "Available attacks: " + ", ".join(sorted(available_attacks)),
+                err=True,
+            )
+            enabled_attacks = [attack for attack in enabled_attacks if attack in available_attacks]
+            if not enabled_attacks:
+                click.echo("Error: no valid attack types remain after filtering.", err=True)
+                sys.exit(1)
 
     engines = [
         TrafficEngine(
@@ -72,7 +103,13 @@ def generate(student_ids, interface, output_dir, students_file, attacks, request
         output_dir=output_dir,
     )
 
-    generator.generate_batch(engines=engines, jobs=jobs)
+    try:
+        generator.generate_batch(engines=engines, jobs=jobs)
+    except RuntimeError as exc:
+        click.echo(f"Error during generation: {exc}", err=True)
+        click.echo("Hint: install tcpdump, confirm the capture interface is correct, and rerun with sudo.", err=True)
+        sys.exit(1)
+
     click.echo(f"Successfully generated traffic for {len(final_student_ids)} students.")
 
 
@@ -89,6 +126,11 @@ def replay(interface, pcap_file, target_ip, target_port):
 
     if os.geteuid() != 0:
         click.echo("Warning: Replaying traffic usually requires sudo.", err=True)
+
+    if not interface_exists(interface):
+        click.echo(f"Error: interface '{interface}' does not exist on this machine.", err=True)
+        click.echo(_interface_hint(), err=True)
+        sys.exit(1)
 
     replay_file = pcap_file
 
@@ -116,6 +158,7 @@ def replay(interface, pcap_file, target_ip, target_port):
             replay_file = temp_pcap
         except subprocess.CalledProcessError as e:
             click.echo(f"Error during tcprewrite: {e}", err=True)
+            click.echo("Hint: verify the target IP/port values and that tcprewrite can access the PCAP.", err=True)
             sys.exit(e.returncode)
 
     click.echo(f"Replaying {replay_file} on {interface}...")
@@ -123,6 +166,7 @@ def replay(interface, pcap_file, target_ip, target_port):
         subprocess.run(["tcpreplay", "--intf1=" + interface, "--topspeed", replay_file], check=True)
     except subprocess.CalledProcessError as e:
         click.echo(f"Error during replay: {e}", err=True)
+        click.echo("Hint: confirm the interface exists, the PCAP is valid, and rerun with sudo if needed.", err=True)
         sys.exit(e.returncode)
     finally:
         # Clean up temporary file if it was created

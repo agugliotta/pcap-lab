@@ -60,9 +60,18 @@ class PcapGenerator:
         """
         Runs the generation process for multiple engines (sequential or parallel).
         """
+        total = len(engines)
+        if total == 0:
+            print("No students queued for generation.")
+            return
+
+        print(f"Starting batch generation for {total} student(s) using {jobs} job(s).")
         if jobs <= 1:
-            for engine in engines:
+            for index, engine in enumerate(engines, start=1):
+                print(f"[{index}/{total}] Generating {engine.student_id}...")
                 self._generate_single(engine)
         else:
+            print("Running in parallel; progress updates will appear as each student finishes.")
             with ProcessPoolExecutor(max_workers=jobs) as executor:
                 list(executor.map(self._generate_single, engines))
+        print("Batch generation complete.")
