@@ -36,8 +36,8 @@ This report records the audit of commit `18e51eb` and the fixes made afterward. 
 
 6. **Replay rewrites the wrong server port** (`main.py:L124-164`, `generator/pcap_generator.py:L30`).
    - **What this is:** tcprewrite maps the captured server port to the target port.
-   - **Problem:** Generation chooses a dynamic server port, while replay always maps 8080. A capture made on port 45678 is unchanged by that mapping.
-   - **Fix:** Save `server_port` in the answer key and read it during replay. Add an explicit `--source-port` override; retain 8080 only when there is no answer key, and reject malformed or incomplete keys.
+   - **Problem:** Generation chooses a dynamic server port, while replay always maps 8080. A capture made on port 45678 is unchanged by that mapping. A real macOS check also found that tcprewrite 4.6.1 can silently skip edits while preserving BSD loopback headers.
+   - **Fix:** Save `server_port` in the answer key and read it during replay. Add an explicit `--source-port` override; retain 8080 only when there is no answer key, and reject malformed or incomplete keys. Reject rewriting BSD loopback captures with conversion guidance, rather than reporting a successful no-op.
    - **If we skip it:** Replay sends packets to the old ephemeral port instead of the requested target port.
 
 7. **Replay temporary files collide and survive failures** (`main.py:L143-178`).
@@ -99,7 +99,7 @@ This report records the audit of commit `18e51eb` and the fixes made afterward. 
 16. **Tests miss the destructive paths and write to real output** (`tests/test_generator.py:L130-178`, `tests/test_capture.py:L1-28`).
     - **What this is:** Tests are meant to verify generation without altering user artifacts.
     - **Problem:** Batch tests use the real `output` directory. Existing tests do not exercise path escape, overwrite protection, replay cleanup, capture completion, or repeated request determinism.
-    - **Fix:** Move batch output to pytest temporary directories and add focused regression cases for the confirmed bugs. The suite grows from 39 to 102 cases.
+    - **Fix:** Move batch output to pytest temporary directories and add focused regression cases for the confirmed bugs. The suite grows from 39 to 103 cases.
     - **If we skip it:** Running tests can touch user results and the same faults can return unnoticed.
 
 17. **Unused fallback code suggests settings that do nothing** (`generator/config.py:L1,L13-15`, `generator/utils/obfuscator.py:L9-11`).
@@ -112,7 +112,7 @@ Verdict: All 17 confirmed findings are addressed. Ship after CI passes.
 
 Lean: -51 lines, -0 dependencies possible (41 lines of fake dependency blocks and 10 lines of unused helper/config code). Questionary is a missing required dependency, so declaring it is necessary.
 
-Not checked: No live external WAF/IDS validation or Ethernet replay was performed. Local macOS loopback captures were generated and decoded successfully, both sequentially and with two worker processes; tcprewrite also mapped the captured dynamic port to 80 in a real PCAP. Linux and the Python version matrix are validated by CI, not by local execution. Generated profiling logs were not treated as executable code.
+Not checked: No live external WAF/IDS validation or Ethernet replay was performed. Local macOS loopback captures were generated and decoded successfully, both sequentially and with two worker processes; tcprewrite mapped the captured dynamic port to 80 after explicit RAW conversion. Preserving BSD loopback framing silently left the ports unchanged, so the CLI now rejects that rewrite case. Linux and the Python version matrix are validated by CI, not by local execution. Generated profiling logs were not treated as executable code.
 
 ## Review of the original latest commit
 

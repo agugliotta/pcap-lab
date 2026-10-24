@@ -263,3 +263,14 @@ def test_shell_clean_refuses_unrelated_data(select, confirm, prompt, clear, tmp_
     PcapLabShell().run_menu()
     assert sentinel.read_text() == 'keep'
     assert 'refusing to delete' in capsys.readouterr().out
+
+
+def test_replay_rejects_silent_bsd_loopback_rewrite(tmp_path):
+    import struct
+    pcap = tmp_path / 'traffic.pcap'
+    pcap.write_bytes(struct.pack('<IHHIIII', 0xa1b2c3d4, 2, 4, 0, 0, 65535, 0))
+    with patch('main.interface_exists', return_value=True), patch('main.shutil.which', return_value='/bin/tool'), patch('main.subprocess.run') as run:
+        result = CliRunner().invoke(main.cli, ['replay', 'lo0', str(pcap), '--target-port', '80'])
+    assert result.exit_code == 1
+    assert 'DLT_NULL' in result.output
+    run.assert_not_called()

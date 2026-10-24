@@ -6,6 +6,7 @@ import shutil
 import json
 import ipaddress
 import tempfile
+import struct
 from pathlib import Path
 import click
 
@@ -140,6 +141,16 @@ def replay(interface, pcap_file, target_ip, target_port, source_port):
         click.echo(f"Error: interface '{interface}' does not exist on this machine.", err=True)
         click.echo(_interface_hint(), err=True)
         sys.exit(1)
+
+    if target_ip or target_port:
+        with open(pcap_file, "rb") as capture:
+            header = capture.read(24)
+        # tcprewrite can silently skip edits when preserving BSD loopback framing.
+        byte_orders = {b"\xd4\xc3\xb2\xa1": "<", b"\x4d\x3c\xb2\xa1": "<",
+                       b"\xa1\xb2\xc3\xd4": ">", b"\xa1\xb2\x3c\x4d": ">"}
+        byte_order = byte_orders.get(header[:4])
+        if len(header) == 24 and byte_order and struct.unpack(byte_order + "I", header[20:24])[0] & 0xFFFF == 0:
+            raise click.ClickException("tcprewrite cannot reliably rewrite BSD loopback (DLT_NULL) captures. Convert to RAW or Ethernet first and select a compatible replay interface.")
 
     if target_ip:
         try:

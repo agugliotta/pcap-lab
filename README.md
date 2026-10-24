@@ -117,7 +117,7 @@ Replay recorded packets on a compatible interface for passive inspection:
 sudo .venv/bin/python main.py replay lo output/agustin/traffic.pcap --target-ip 172.17.0.2 --target-port 80
 ```
 
-The captured server port is read from the sibling `answer_key.json`. For a moved capture or an older answer key without `server_port`, pass `--source-port <captured-port>` explicitly. Without an answer key, legacy port 8080 is assumed. The PCAP link-layer format must match the replay interface; loopback captures cannot be sent directly on an Ethernet interface without conversion. Rewriting addresses does not turn packet replay into an HTTP session.
+The captured server port is read from the sibling `answer_key.json`. For a moved capture or an older answer key without `server_port`, pass `--source-port <captured-port>` explicitly. Without an answer key, legacy port 8080 is assumed. The PCAP link-layer format must match the replay interface; loopback captures cannot be sent directly on an Ethernet interface without conversion. Rewriting addresses does not turn packet replay into an HTTP session. Rewriting BSD loopback (`DLT_NULL`, common on macOS) captures is rejected because tcprewrite can silently leave headers unchanged; convert them to RAW or Ethernet first with a suitable tool and select a compatible replay interface.
 
 Generation always uses a local HTTP server. Capture on `lo` (Linux) or `lo0` (macOS); a capture without packets fails. Student IDs must be single directory names. Duplicate IDs and existing student output directories are rejected before the batch starts. To repeat a run, choose a new `--output-dir` or use `clean` first. `clean` only removes generated student directories and refuses unrelated files or symlinks.
 
