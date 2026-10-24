@@ -12,14 +12,14 @@ class AttackRegistry:
     attack library without modifying the core engine logic.
     """
 
-    def __init__(self, registry_file="generator/attacks.json"):
+    def __init__(self, registry_file=None):
         """
         Initializes the registry by loading the mapping from the specified file.
         
         Args:
             registry_file (str): Path to the JSON file containing attack mappings.
         """
-        self.registry_file = registry_file
+        self.registry_file = registry_file if registry_file is not None else Path(__file__).with_name("attacks.json")
         self.registry = self._load_registry()
 
     def _load_registry(self):
@@ -31,12 +31,12 @@ class AttackRegistry:
         """
         try:
             registry_path = Path(self.registry_file)
-            if not registry_path.is_absolute() and not registry_path.exists():
-                registry_path = Path(__file__).resolve().parent / registry_path.name
-
             with open(registry_path, 'r') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
+                registry = json.load(f)
+            if not isinstance(registry, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in registry.items()):
+                raise ValueError("Attack registry must map names to class paths.")
+            return registry
+        except (OSError, ValueError) as e:
             logging.error(f"Failed to load attack registry: {e}")
             return {}
 

@@ -1,33 +1,11 @@
 import os
-import shutil
-import sys
 import time
-import types
 from generator.traffic_engine import TrafficEngine
 from generator.pcap_generator import PcapGenerator
 from generator.utils.network import default_interface, interface_exists, list_interfaces
+from generator.utils.output import clean_output
 
-try:
-    import questionary
-except ImportError:  # pragma: no cover - exercised when dependency is unavailable
-    questionary = types.ModuleType("questionary")
-
-    class _Prompt:
-        def __init__(self, *args, **kwargs):
-            self.args = args
-            self.kwargs = kwargs
-
-        def ask(self):
-            return None
-
-    def _factory(*args, **kwargs):
-        return _Prompt(*args, **kwargs)
-
-    questionary.select = _factory
-    questionary.text = _factory
-    questionary.path = _factory
-    questionary.confirm = _factory
-    sys.modules.setdefault("questionary", questionary)
+import questionary
 
 class PcapLabShell:
     """
@@ -110,7 +88,7 @@ class PcapLabShell:
 
             if choice is None or choice == "Back":
                 break
-            
+
             self.clear_screen()
             if "Student List" in choice:
                 val = questionary.text("Enter student list (comma-separated):", default=self.config['student_list']).ask()
@@ -190,8 +168,11 @@ class PcapLabShell:
                         default=False,
                     ).ask()
                     if confirmed:
-                        shutil.rmtree("output")
-                        print("Output cleaned.")
+                        try:
+                            clean_output("output")
+                            print("Output cleaned.")
+                        except (OSError, ValueError) as exc:
+                            print(f"Cannot clean output: {exc}")
                     else:
                         print("Clean output canceled.")
                 else:
@@ -211,26 +192,31 @@ class PcapLabShell:
                     self._print_interface_hint()
                     input("\nPress Enter to continue...")
                     continue
-                
+
                 print("\nGenerating...")
-                student_ids = []
-                if self.config['student_file']:
-                    with open(self.config['student_file'], 'r') as f:
-                        student_ids.extend([line.strip() for line in f if line.strip()])
-                if self.config['student_list']:
-                    student_ids.extend([s.strip() for s in self.config['student_list'].split(',') if s.strip()])
-                    
-                engines = [TrafficEngine(
-                    student_id=sid,
-                    num_requests=self.config['requests'],
-                    attack_ratio=self.config['attack_ratio'],
-                    obfuscation_level=self.config['obfuscation'],
-                    enabled_attacks=self.config['enabled_attacks']
-                ) for sid in student_ids]
-                
-                generator = PcapGenerator(interface=self.config['interface'])
-                generator.generate_batch(engines=engines, jobs=self.config['jobs'])
-                print("Batch Complete!")
+                try:
+                    student_ids = []
+                    if self.config['student_file']:
+                        with open(self.config['student_file'], 'r', encoding='utf-8') as f:
+                            student_ids.extend([line.strip() for line in f if line.strip()])
+                    if self.config['student_list']:
+                        student_ids.extend([s.strip() for s in self.config['student_list'].split(',') if s.strip()])
+
+                    if not student_ids:
+                        raise ValueError("No student IDs provided.")
+                    engines = [TrafficEngine(
+                        student_id=sid,
+                        num_requests=self.config['requests'],
+                        attack_ratio=self.config['attack_ratio'],
+                        obfuscation_level=self.config['obfuscation'],
+                        enabled_attacks=self.config['enabled_attacks']
+                    ) for sid in student_ids]
+
+                    generator = PcapGenerator(interface=self.config['interface'])
+                    generator.generate_batch(engines=engines, jobs=self.config['jobs'])
+                    print("Batch Complete!")
+                except (OSError, ValueError, RuntimeError) as exc:
+                    print(f"Error during generation: {exc}")
                 input("\nPress Enter to continue...")
 
 if __name__ == "__main__":
