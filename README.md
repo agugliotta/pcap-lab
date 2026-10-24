@@ -21,14 +21,14 @@
 
 **PCAP Lab Generator** is a specialized tool designed to bridge the gap between synthetic packet crafting and manual browsing. It generates **deterministic HTTP traffic** that blends realistic user behavior with sophisticated web attacks, outputting industry-standard **PCAP files** ready for deep packet inspection (DPI) and security analysis.
 
-Unlike traditional random traffic generators, this tool ensures **100% reproducibility** by using a seed-based approach. This makes it the ideal companion for **cybersecurity educators** building labs, and **security engineers** validating **WAF (Web Application Firewall)** rules, IDS/IPS signatures, or ModSecurity CRS configurations.
+Unlike traditional random traffic generators, this tool ensures **reproducible attack sequences** by using a seed-based approach. This makes it the ideal companion for **cybersecurity educators** building labs, and **security engineers** inspecting payloads and validating passive IDS/IPS signatures.
 
 ## 🛡️ Key Features
 
-- 🎯 **Deterministic Traffic:** Uses a `STUDENT_ID` seed to guarantee identical attack sequences and payloads for every run—perfect for consistent grading and benchmarking.
+- 🎯 **Deterministic Traffic:** Uses a `STUDENT_ID` seed to guarantee identical attack sequences and payloads for the same settings and software version—perfect for consistent grading and benchmarking.
 - 🧱 **Realistic Simulation:** Emulates diverse User-Agents, varied HTTP headers, and normal navigation patterns to hide malicious signatures in noise.
 - 🧪 **Multi-Vector Attack Library:** Built-in modules for **SQL Injection (SQLi)**, **XSS**, **RCE**, **LFI**, **IDOR**, **CSRF**, and **Command Injection**.
-- ✅ **Automated Ground Truth:** Generates a detailed `answer_key.json` mapping every attack to its exact timestamp and payload for automated validation.
+- ✅ **Automated Ground Truth:** Generates a detailed `answer_key.json` mapping every attack to its request index, send timestamp, and payload for automated validation.
 - 📦 **Modern CLI:** A unified Python interface built with `Click` for seamless generation, replay, and testing workflows.
 
 ## 🛠️ Installation
@@ -93,8 +93,8 @@ This tool facilitates a complete **Attack-Detection-Defense** cycle:
 
 1.  **Offense (Generate):** Fire the generator to create a trace containing a mix of malicious and normal traffic.
 2.  **Analysis (Detect):** Students use **Wireshark** or **TShark** to identify attack signatures based on the `answer_key.json`.
-3.  **Defense (Mitigate):** Write and apply defensive rules (e.g., **ModSecurity CRS**) to block the identified vectors.
-4.  **Validation (Replay):** Use the `replay` command to fire the exact same traffic against the protected target to verify mitigation success.
+3.  **Defense (Mitigate):** Use the payloads to design defensive rules (e.g., **ModSecurity CRS**). Test live WAF behavior with an HTTP client.
+4.  **Validation (Replay):** Use `replay` for packet-level inspection by passive sensors. It sends recorded packets; it does not establish new TCP sessions with a live HTTP server.
 
 ## 📖 Advanced Usage
 
@@ -110,12 +110,18 @@ sudo .venv/bin/python main.py generate test lo --requests 100 --attack-ratio 0.2
 ```
 
 ### Flexible Traffic Replay
-Replay captured traffic against an external WAF or a Docker container:
+Replay recorded packets on a compatible interface for passive inspection:
 
 ```bash
-# Rewrite destination IP and Port on the fly
+# Rewrite destination IP and captured server port on the fly
 sudo .venv/bin/python main.py replay lo output/agustin/traffic.pcap --target-ip 172.17.0.2 --target-port 80
 ```
+
+The captured server port is read from the sibling `answer_key.json`. For a moved capture or an older answer key without `server_port`, pass `--source-port <captured-port>` explicitly. Without an answer key, legacy port 8080 is assumed. The PCAP link-layer format must match the replay interface; loopback captures cannot be sent directly on an Ethernet interface without conversion. Rewriting addresses does not turn packet replay into an HTTP session. Rewriting BSD loopback (`DLT_NULL`, common on macOS) captures is rejected because tcprewrite can silently leave headers unchanged; convert them to RAW or Ethernet first with a suitable tool and select a compatible replay interface.
+
+Generation always uses a local HTTP server. Capture on `lo` (Linux) or `lo0` (macOS); a capture without packets fails. Student IDs must be single directory names. Duplicate IDs and existing student output directories are rejected before the batch starts. To repeat a run, choose a new `--output-dir` or use `clean` first. `clean` only removes generated student directories and refuses unrelated files or symlinks.
+
+Obfuscation levels 2 and 3 apply one and two rounds of URL encoding to payload values, preserving case-sensitive commands and paths. HTTP query/form serialization can add another encoding layer on the wire. Seeds preserve request selection and payloads for the same settings and dependency versions; ports, timestamps, TCP sequence numbers, and PCAP bytes vary across runs.
 
 ## 🧪 Testing
 

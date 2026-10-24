@@ -1,5 +1,6 @@
 import random
-from typing import List, Dict, Optional, Type
+import time
+from typing import List, Dict, Optional
 from generator.attack_registry import AttackRegistry
 from generator.traffic.base import TrafficStrategy
 from generator.traffic.normal import NormalTraffic
@@ -10,15 +11,15 @@ from generator.config import BASE_URL, MIN_REQUESTS, MAX_REQUESTS, ATTACK_PROBAB
 class TrafficEngine:
     """
     Handles the deterministic simulation loop and traffic generation.
-    
+
     This engine uses a student-specific seed to ensure reproducible traffic generation,
     orchestrating between normal browsing behavior and injected malicious attack vectors
     based on configured parameters.
     """
-    
+
     def __init__(
-        self, 
-        student_id: str, 
+        self,
+        student_id: str,
         client: Optional[TrafficClient] = None,
         enabled_attacks: Optional[List[str]] = None,
         num_requests: Optional[int] = None,
@@ -28,7 +29,7 @@ class TrafficEngine:
     ):
         """
         Initializes the TrafficEngine.
-        
+
         Args:
             student_id (str): Unique identifier for the student/scenario seed.
             client (TrafficClient, optional): Client instance for HTTP requests.
@@ -38,13 +39,23 @@ class TrafficEngine:
             attack_ratio (float, optional): Ratio of malicious to normal requests.
             obfuscation_level (int): Level of obfuscation (1-3) for attack payloads.
         """
+        if not student_id or student_id in (".", "..") or any(c in student_id for c in ("/", "\\", "\x00")):
+            raise ValueError("Student IDs must be nonempty directory names without path separators.")
+        if num_requests is not None and num_requests <= 0:
+            raise ValueError("Requests must be a positive integer.")
+        if attack_count is not None and (attack_count < 0 or (num_requests is not None and attack_count > num_requests)):
+            raise ValueError("Attack count must be nonnegative and cannot exceed requests.")
+        if attack_ratio is not None and not 0 <= attack_ratio <= 1:
+            raise ValueError("Attack ratio must be between 0 and 1.")
+        if obfuscation_level not in (1, 2, 3):
+            raise ValueError("Obfuscation level must be 1, 2, or 3.")
         self.student_id = student_id
         self.enabled_attacks = enabled_attacks
         self.num_requests = num_requests
         self.attack_count = attack_count
         self.attack_ratio = attack_ratio
         self.obfuscation_level = obfuscation_level
-        
+
         self.seed = init_seed(student_id)
         self.client = client or TrafficClient()
         self.normal_strategy = NormalTraffic()
@@ -54,44 +65,48 @@ class TrafficEngine:
     def _load_attack_strategies(self) -> List[TrafficStrategy]:
         """
         Instantiates the enabled attack classes using the dynamic registry.
-        
+
         Returns:
             List[TrafficStrategy]: List of initialized attack strategy objects.
         """
         target_attacks = self.enabled_attacks if self.enabled_attacks is not None else self.registry.get_all_attack_names()
         strategies = []
-        
+
         for name in target_attacks:
             attack_class = self.registry.get_attack_class(name)
-            if attack_class:
-                strategy = attack_class()
-                strategy.set_obfuscation_level(self.obfuscation_level)
-                strategies.append(strategy)
-        
+            if attack_class is None:
+                raise ValueError(f"Cannot load attack: {name}")
+            strategy = attack_class()
+            strategy.set_obfuscation_level(self.obfuscation_level)
+            strategies.append(strategy)
+
         return strategies
 
     def run(self, base_url: Optional[str] = None) -> Dict:
         """
         Executes the traffic generation loop based on configured strategy.
-        
+
         This method deterministically places attacks within the generated traffic stream,
         executes requests via the HTTP client, and tracks metadata for the answer key.
-        
+
         Args:
             base_url (str, optional): Override for the base URL. If not provided, uses `config.BASE_URL`.
-            
+
         Returns:
             Dict: Ground truth metadata containing attack information and session details.
         """
         # Ensure determinism by seeding the global random generator at execution time
         random.seed(self.seed)
-        
+
         target_url = base_url or BASE_URL
         total_requests = self.num_requests if self.num_requests is not None else random.randint(MIN_REQUESTS, MAX_REQUESTS)
-        
+
         # Calculate final attack count
         final_attack_count = self._calculate_attack_count(total_requests)
-        
+
+        if final_attack_count and not self.attack_strategies:
+            raise ValueError("No attack strategies available for the requested attack count.")
+
         # Pre-calculate attack indices for deterministic placement
         attack_indices = set()
         if final_attack_count > 0 and self.attack_strategies:
@@ -99,20 +114,25 @@ class TrafficEngine:
 
         executed_attacks = []
 
-        for i in range(total_requests):
-            # Polymorphic Strategy Selection
-            if i in attack_indices:
-                strategy = random.choice(self.attack_strategies)
-            else:
-                strategy = self.normal_strategy
-            
-            # Generate and Execute
-            request_kwargs, metadata = strategy.generate(target_url)
-            
-            if metadata:
-                executed_attacks.append(metadata)
-            
-            self.client.execute(request_kwargs)
+        try:
+            for i in range(total_requests):
+                # Polymorphic Strategy Selection
+                if i in attack_indices:
+                    strategy = random.choice(self.attack_strategies)
+                else:
+                    strategy = self.normal_strategy
+
+                # Generate and Execute
+                request_kwargs, metadata = strategy.generate(target_url)
+
+                if metadata:
+                    metadata["request_index"] = i + 1
+                    metadata["timestamp"] = time.time()
+                    executed_attacks.append(metadata)
+
+                self.client.execute(request_kwargs)
+        finally:
+            self.client.close()
 
         return {
             "seed": str(self.seed),
@@ -121,7 +141,8 @@ class TrafficEngine:
                 "num_requests": self.num_requests,
                 "enabled_attacks": self.enabled_attacks if self.enabled_attacks is not None else list(self.registry.get_all_attack_names()),
                 "attack_count": self.attack_count,
-                "attack_ratio": self.attack_ratio
+                "attack_ratio": self.attack_ratio,
+                "obfuscation_level": self.obfuscation_level
             },
             "total_requests": total_requests,
             "attacks": executed_attacks
@@ -130,10 +151,10 @@ class TrafficEngine:
     def _calculate_attack_count(self, total_requests: int) -> int:
         """
         Calculates the number of attacks to inject based on provided parameters.
-        
+
         Args:
             total_requests (int): The total number of requests planned.
-            
+
         Returns:
             int: The calculated number of malicious requests.
         """
@@ -142,7 +163,7 @@ class TrafficEngine:
         if self.attack_ratio is not None:
             count = int(round(total_requests * self.attack_ratio))
             return max(0, min(total_requests, count))
-        
+
         # Default probabilistic behavior (using indices for determinism)
         # Note: We simulate probability by calculating a sample size
         return int(sum(1 for _ in range(total_requests) if random.random() < ATTACK_PROBABILITY))

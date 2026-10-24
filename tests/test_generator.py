@@ -133,7 +133,7 @@ from generator.pcap_generator import PcapGenerator
 
 @patch('generator.pcap_generator.BackgroundServer')
 @patch('generator.pcap_generator.packet_capture')
-def test_generate_batch(mock_capture, mock_server):
+def test_generate_batch(mock_capture, mock_server, tmp_path):
     """
     Test the batch generation functionality (sequential and parallel).
     """
@@ -147,8 +147,9 @@ def test_generate_batch(mock_capture, mock_server):
     
     engines = [mock_engine1, mock_engine2]
     
-    generator = PcapGenerator(interface="lo")
+    generator = PcapGenerator(interface="lo", output_dir=str(tmp_path))
     
+    mock_server.return_value.port = 43210
     # Test sequential
     generator.generate_batch(engines, jobs=1)
     
@@ -157,7 +158,7 @@ def test_generate_batch(mock_capture, mock_server):
     assert mock_server.return_value.start.call_count == 2
 
 @patch('generator.pcap_generator.ProcessPoolExecutor')
-def test_generate_batch_parallel(mock_executor):
+def test_generate_batch_parallel(mock_executor, tmp_path):
     """
     Regression test: Ensure ProcessPoolExecutor is used for parallel batch generation.
     """
@@ -167,7 +168,7 @@ def test_generate_batch_parallel(mock_executor):
     mock_engine2.student_id = "student2"
     engines = [mock_engine1, mock_engine2]
     
-    generator = PcapGenerator(interface="lo")
+    generator = PcapGenerator(interface="lo", output_dir=str(tmp_path))
     
     # Test parallel
     generator.generate_batch(engines, jobs=4)
@@ -176,8 +177,8 @@ def test_generate_batch_parallel(mock_executor):
     assert mock_executor.called
     mock_executor.return_value.__enter__.return_value.map.assert_called_once()
 
-def test_generate_batch_empty_queue(capsys):
-    generator = PcapGenerator(interface="lo")
+def test_generate_batch_empty_queue(capsys, tmp_path):
+    generator = PcapGenerator(interface="lo", output_dir=str(tmp_path))
 
     generator.generate_batch([], jobs=1)
 

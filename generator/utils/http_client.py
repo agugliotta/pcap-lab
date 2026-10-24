@@ -1,27 +1,8 @@
 import random
-import sys
 import time
-import types
 from typing import Dict, Optional
 
-try:
-    import requests
-except ImportError:  # pragma: no cover - exercised when dependency is unavailable
-    requests = types.ModuleType("requests")
-
-    class RequestException(Exception):
-        pass
-
-    class Session:
-        def request(self, **kwargs):
-            return None
-
-        def close(self):
-            return None
-
-    requests.RequestException = RequestException
-    requests.Session = Session
-    sys.modules.setdefault("requests", requests)
+import requests
 
 class TrafficClient:
     """
@@ -35,6 +16,7 @@ class TrafficClient:
     def session(self) -> requests.Session:
         if self._session is None:
             self._session = requests.Session()
+            self._session.trust_env = False
         return self._session
         
     def __getstate__(self):
@@ -51,16 +33,14 @@ class TrafficClient:
         Executes a single HTTP request and sleeps for a random duration.
         """
         try:
-            self.session.request(**request_kwargs, timeout=timeout)
-            
-            # Simulate human/realistic traffic intervals
+            response = self.session.request(**request_kwargs, timeout=timeout)
+            response.close()
+        except requests.RequestException as exc:
+            raise RuntimeError(f"HTTP request failed: {exc}") from exc
+        finally:
             if delay_range:
                 time.sleep(random.uniform(*delay_range))
-        except requests.RequestException:
-            # We ignore request errors (e.g. server busy) during traffic generation
-            # as the focus is on the packets being sent.
-            pass
-            
+
     def close(self):
         if self._session is not None:
             self._session.close()
