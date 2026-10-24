@@ -1,6 +1,7 @@
 import random
 from typing import Dict, Tuple
 from .base import BaseAttack
+from ..utils.obfuscator import Obfuscator
 
 class SQLIAttack(BaseAttack):
     PAYLOADS = [
@@ -28,7 +29,7 @@ class SQLIAttack(BaseAttack):
         Generates an SQL Injection attack configuration.
         Returns: (request_kwargs, answer_key_metadata)
         """
-        payload = random.choice(self.PAYLOADS)
+        payload = Obfuscator.obfuscate(random.choice(self.PAYLOADS), self.obfuscation_level)
         endpoint = random.choice(self.ENDPOINTS)
         url = f"{base_url}{endpoint}"
         

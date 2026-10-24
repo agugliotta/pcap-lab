@@ -1,8 +1,10 @@
 import os
 import json
 import time
-from typing import Optional
-from .config import SERVER_HOST, SERVER_PORT, BASE_URL
+import shutil
+from typing import List
+from concurrent.futures import ProcessPoolExecutor
+from .config import SERVER_HOST
 from .utils.server import BackgroundServer
 from .utils.capture import packet_capture
 from .traffic_engine import TrafficEngine
@@ -11,48 +13,76 @@ class PcapGenerator:
     """
     Orchestrates the server, packet capture, and traffic engine.
     """
-    
-    def __init__(self, engine: TrafficEngine, interface: str, output_dir: str = "output"):
-        self.engine = engine
+
+    def __init__(self, interface: str, output_dir: str = "output"):
         self.interface = interface
         self.output_dir = output_dir
-        
-        # Setup output paths
-        self.student_dir = os.path.join(self.output_dir, self.engine.student_id)
-        self.pcap_file = os.path.join(self.student_dir, "traffic.pcap")
-        self.key_file = os.path.join(self.student_dir, "answer_key.json")
-        
-        os.makedirs(self.student_dir, exist_ok=True)
 
-    def generate(self):
+    def _generate_single(self, engine: TrafficEngine):
         """
-        Runs the full generation process.
+        Runs the full generation process for a single student engine.
+        This method is designed to be called in a separate process.
         """
-        server = BackgroundServer(host=SERVER_HOST, port=SERVER_PORT)
-        server.start()
-        print(f"Server started on {BASE_URL}")
-        
+        student_dir = os.path.join(self.output_dir, engine.student_id)
+        pcap_file = os.path.join(student_dir, "traffic.pcap")
+        key_file = os.path.join(student_dir, "answer_key.json")
+
+        os.makedirs(self.output_dir, exist_ok=True)
+        os.mkdir(student_dir)
+
+        server = BackgroundServer(host=SERVER_HOST, port=0)
         try:
+            server.start()
+            print(f"Server started on http://{server.host}:{server.port} for student: {engine.student_id}")
             # Start Capture
-            with packet_capture(self.interface, self.pcap_file, capture_filter=f"port {SERVER_PORT}"):
-                
-                print(f"Generating traffic for student: {self.engine.student_id}...")
+            with packet_capture(self.interface, pcap_file, capture_filter=f"port {server.port}"):
                 start_time = time.time()
-                
+
                 # Execute Traffic
-                answer_data = self.engine.run()
-                
+                answer_data = engine.run(
+                    base_url=f"http://{server.host}:{server.port}",
+                )
+
                 duration = time.time() - start_time
-                print(f"Traffic generation complete in {duration:.2f}s")
-                
-                # Save Answer Key
-                with open(self.key_file, "w") as f:
-                    json.dump(answer_data, f, indent=2)
-                print(f"Answer key saved to {self.key_file}")
-                
-        except Exception as e:
-            print(f"\nError during generation: {e}")
+                print(f"Traffic generation complete for student {engine.student_id} in {duration:.2f}s")
+
+            answer_data["server_port"] = server.port
+            with open(key_file, "w") as f:
+                json.dump(answer_data, f, indent=2)
+            print(f"Answer key saved to {key_file}")
+
+        except BaseException as e:
+            shutil.rmtree(student_dir)
+            print(f"\nError during generation for student {engine.student_id}: {e}")
             raise
         finally:
             server.stop()
-            print("Server stopped.")
+            print(f"Server stopped for student: {engine.student_id}")
+
+    def generate_batch(self, engines: List[TrafficEngine], jobs: int = 1):
+        """
+        Runs the generation process for multiple engines (sequential or parallel).
+        """
+        if jobs < 1:
+            raise ValueError("Jobs must be a positive integer.")
+        student_ids = [engine.student_id for engine in engines]
+        if len(set(student_ids)) != len(student_ids):
+            raise ValueError("Duplicate student IDs in batch.")
+        for student_id in student_ids:
+            if os.path.lexists(os.path.join(self.output_dir, student_id)):
+                raise ValueError(f"Output already exists for {student_id}; choose another output directory.")
+        total = len(engines)
+        if total == 0:
+            print("No students queued for generation.")
+            return
+
+        print(f"Starting batch generation for {total} student(s) using {jobs} job(s).")
+        if jobs <= 1:
+            for index, engine in enumerate(engines, start=1):
+                print(f"[{index}/{total}] Generating {engine.student_id}...")
+                self._generate_single(engine)
+        else:
+            print("Running in parallel; each student will report when its PCAP starts and finishes.")
+            with ProcessPoolExecutor(max_workers=jobs) as executor:
+                list(executor.map(self._generate_single, engines))
+        print("Batch generation complete.")

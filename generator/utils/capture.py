@@ -1,80 +1,60 @@
+import os
+import selectors
+import signal
 import subprocess
 import time
-import os
-import signal
 from contextlib import contextmanager
+
+
+def _wait_until_ready(process, interface, timeout=5):
+    deadline = time.monotonic() + timeout
+    with selectors.DefaultSelector() as selector:
+        selector.register(process.stderr, selectors.EVENT_READ)
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise RuntimeError(f"tcpdump failed to start on interface {interface}: {process.stderr.read().strip()}")
+            if selector.select(timeout=0.1):
+                line = process.stderr.readline()
+                if "listening on" in line:
+                    return
+    raise RuntimeError(f"tcpdump did not become ready on interface {interface}.")
+
 
 @contextmanager
 def packet_capture(interface: str, output_file: str, capture_filter: str = "port 8080"):
-    """
-    Context manager to run tcpdump during the execution of a block of code.
-    
-    Args:
-        interface: The network interface to capture on (e.g., 'lo', 'eth0').
-        output_file: Path to save the .pcap file.
-        capture_filter: BPF filter string for tcpdump.
-    """
-    # Ensure output directory exists
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-
-    # Remove existing file if present
-    if os.path.exists(output_file):
-        os.remove(output_file)
-
-    # Start tcpdump
-    # -i: interface
-    # -w: write to file
-    # -U: packet-buffered (write immediately)
-    # -s 0: snaplen (default 262144 is usually fine, 0 means full packet)
-    cmd = [
-        "tcpdump",
-        "-i", interface,
-        "-w", output_file,
-        "-U",
-        "-s", "0",
-        capture_filter
-    ]
-    
+    """Capture only after tcpdump reports readiness, and fail on incomplete files."""
+    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
+    cmd = ["tcpdump", "--immediate-mode", "-n", "-i", interface, "-w", output_file, "-U", "-s", "0", capture_filter]
     print(f"Starting capture on {interface} -> {output_file}")
-    
-    # Start process
-    # stdout=subprocess.DEVNULL suppresses packet count output
-    process = subprocess.Popen(
-        cmd, 
-        stdout=subprocess.DEVNULL, 
-        stderr=subprocess.PIPE,
-        text=True,
-        preexec_fn=os.setsid  # Start in new session to kill process group later
-    )
-    
-    # Wait for tcpdump to initialize
-    # 0.5s is usually enough for tcpdump to start on modern systems
-    time.sleep(0.5)
-    
-    # Check if process died early (e.g. permission denied)
-    if process.poll() is not None:
-        stderr = process.stderr.read()
-        print(f"Error: tcpdump failed to start: {stderr.strip()}")
-    
     try:
+        process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                   text=True, start_new_session=True)
+    except FileNotFoundError as exc:
+        raise RuntimeError("tcpdump is not installed or not available on PATH. Install tcpdump and retry with sudo.") from exc
+
+    forced = False
+    try:
+        _wait_until_ready(process, interface)
         yield process
     finally:
-        # Stop tcpdump
         print("Stopping capture...")
         try:
-            # Kill the process group to ensure sudo tcpdump dies
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            process.wait(timeout=2)
-        except Exception:
-            # Force kill if needed
+            if process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGINT)
+                except ProcessLookupError:
+                    pass
             try:
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except:
-                pass
-        
-        # Verify file creation
-        if os.path.exists(output_file):
-            size = os.path.getsize(output_file)
-            print(f"Capture finished. File size: {size} bytes")
-        else:
-            print("Warning: PCAP file was not created.")
+                _, stderr = process.communicate(timeout=3)
+            except subprocess.TimeoutExpired:
+                forced = True
+                os.killpg(process.pid, signal.SIGKILL)
+                _, stderr = process.communicate()
+        finally:
+            process.stderr.close()
+
+    if forced or process.returncode not in (0, -signal.SIGINT):
+        raise RuntimeError(f"tcpdump failed while capturing: {stderr.strip()}")
+    if not os.path.exists(output_file) or os.path.getsize(output_file) <= 24:
+        raise RuntimeError("Capture contains no packets. Use the loopback interface (lo on Linux, lo0 on macOS).")
+    print(f"Capture finished. File size: {os.path.getsize(output_file)} bytes")

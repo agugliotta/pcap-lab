@@ -1,0 +1,9 @@
+{
+  "sqli": "generator.attacks.sqli.SQLIAttack",
+  "xss": "generator.attacks.xss.XSSAttack",
+  "idor": "generator.attacks.idor.IDORAttack",
+  "csrf": "generator.attacks.csrf.CSRFAttack",
+  "rce": "generator.attacks.rce.RCEAttack",
+  "lfi": "generator.attacks.lfi.LFIAttack",
+  "cmdi": "generator.attacks.cmdi.CMDIAttack"
+}

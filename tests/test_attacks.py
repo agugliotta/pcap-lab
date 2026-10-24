@@ -12,6 +12,7 @@ from generator.attacks.rce import RCEAttack
 from generator.attacks.lfi import LFIAttack
 from generator.attacks.cmdi import CMDIAttack
 from generator.traffic import normal
+from generator.utils.obfuscator import Obfuscator
 
 BASE_URL = "http://testserver"
 
@@ -70,3 +71,14 @@ def test_normal_traffic():
     assert req["method"] == "GET"
     assert req["url"].startswith(BASE_URL)
     assert "User-Agent" in req["headers"]
+
+def test_obfuscator_levels():
+    text = "select * from users;"
+    assert Obfuscator.obfuscate(text, 1) == text
+    
+    encoded_l2 = Obfuscator.obfuscate(text, 2)
+    assert "%" in encoded_l2
+    
+    encoded_l3 = Obfuscator.obfuscate(text, 3)
+    assert "%25" in encoded_l3  # double url encoding of spaces or characters results in %25
+

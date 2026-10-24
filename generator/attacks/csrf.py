@@ -1,6 +1,7 @@
 import random
 from typing import Dict, Tuple
 from .base import BaseAttack
+from ..utils.obfuscator import Obfuscator
 
 class CSRFAttack(BaseAttack):
     ACTIONS = [
@@ -16,7 +17,7 @@ class CSRFAttack(BaseAttack):
         CSRF often involves a state-changing request without a token.
         Returns: (request_kwargs, answer_key_metadata)
         """
-        action = random.choice(self.ACTIONS)
+        action = Obfuscator.obfuscate(random.choice(self.ACTIONS), self.obfuscation_level)
         endpoint = f"/account/{action}"
         url = f"{base_url}{endpoint}"
         
